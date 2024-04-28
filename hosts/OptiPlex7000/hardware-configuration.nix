@@ -42,6 +42,11 @@
     options = [ "compress=zstd" ];
   };
 
+  fileSystems."/ext4-part" = {
+    device = "/dev/sda2";
+    fsType = "ext4";
+  };
+
   fileSystems."/run/media/MyPassport" = {
     device = "/dev/sdc1";
     fsType = "ntfs-3g";
