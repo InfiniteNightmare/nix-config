@@ -18,7 +18,10 @@
   ];
 
   # Bootloader.
-  boot.loader.systemd-boot.enable = true;
+  boot.loader.systemd-boot = {
+    enable = true;
+    configurationLimit = 10;
+  };
   boot.loader.efi.canTouchEfiVariables = true;
   boot.supportedFilesystems = [ "ntfs" ];
 
@@ -98,15 +101,12 @@
     ];
   };
 
-  nix.optimise = {
-    automatic = true;
-    dates = [ "03:45" ];
-  };
+  nix.settings.auto-optimise-store = true;
 
   nix.gc = {
     automatic = true;
-    dates = "03:15";
-    options = ''--delete-older-than 14d'';
+    dates = "weekly";
+    options = ''--delete-older-than 1w'';
   };
 
   # List packages installed in system profile. To search, run:
