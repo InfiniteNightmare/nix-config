@@ -1,12 +1,16 @@
 { config, pkgs, ... }:
 {
 
-  home.file.".config/nushell" = {
-    source = ./nushell;
-    recursive = true;
-  };
+  home.file = {
+    ".config/nushell" = {
+      source = ./nushell;
+      recursive = true;
+    };
 
-  home.file.".config/starship.toml".source = ./starship.toml;
+    ".config/starship.toml".source = ./starship.toml;
+
+    ".config/zellij/config.kdl".source = ./zellij.kdl;
+  };
 
   programs = {
     nushell = {
