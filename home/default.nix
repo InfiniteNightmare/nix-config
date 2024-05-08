@@ -19,7 +19,7 @@
   };
 
   home.packages = with pkgs; [
-    neofetch
+    fastfetch
     joshuto # terminal file manager
 
     # archives
@@ -92,9 +92,6 @@
 
     sshpass
 
-    # clash-verge-rev
-    # clash-verge
-
     # browser
     (microsoft-edge.override { commandLineArgs = [ "--enable-wayland-ime" ]; })
 
@@ -107,9 +104,7 @@
     lapce
     zed-editor
 
-    # App runner
-    # wofi
-
+    # clipboard
     wl-clipboard
     cliphist
 

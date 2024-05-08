@@ -890,4 +890,4 @@ $env.config = {
 # start_zellij_in_alacritty
 
 use ~/.cache/starship/init.nu
-neofetch
+fastfetch
