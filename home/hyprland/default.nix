@@ -1,4 +1,9 @@
-{ pkgs, config, ... }:
+{
+  inputs,
+  pkgs,
+  config,
+  ...
+}:
 {
 
   wayland.windowManager.hyprland = {
@@ -6,6 +11,10 @@
     package = pkgs.hyprland;
     xwayland.enable = true;
     systemd.enable = true;
+    # plugins = with inputs.hyprland-plugins.packages.${pkgs.system}; [
+    #   borders-plus-plus
+    #   hyprbars
+    # ];
     settings = {
       general = {
         gaps_in = 5;
@@ -92,6 +101,8 @@
         "$mainMod, V, togglefloating"
         "$mainMod, P, pseudo"
         "$mainMod, J, togglesplit"
+        "$mainMod, F, fullscreen"
+        "$mainMod, W, exec, pkill -SIGUSR1 waybar"
 
         # Move focus with mainMod + arrow keys
         "$mainMod, left, movefocus, l"
@@ -129,6 +140,10 @@
         # Move/resize windows with mainMod + LMB/RMB and dragging
         "$mainMod, mouse:272, movewindow"
         "$mainMod, mouse:273, resizewindow"
+      ];
+      windowrulev2 = [
+        "move 290 0, class:(th)(.*)(\.exe)"
+        "size 1920 1440, class:(th)(.*)(\.exe)"
       ];
     };
   };
