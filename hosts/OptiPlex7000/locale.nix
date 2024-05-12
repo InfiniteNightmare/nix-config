@@ -1,6 +1,15 @@
-{ conifg, pkgs, ... }: {
+{ conifg, pkgs, ... }:
+{
   # Select internationalisation properties.
   i18n.defaultLocale = "en_US.UTF-8";
+
+  i18n.supportedLocales = [
+    "all"
+    #   "C.UTF-8/UTF-8"
+    #   "en_US.UTF-8/UTF-8"
+    #   "ja_JP.UTF-8/UTF-8"
+    #   "zh_CN.UTF-8/UTF-8"
+  ];
 
   i18n.extraLocaleSettings = {
     LC_ADDRESS = "zh_CN.UTF-8";
@@ -29,8 +38,14 @@
       defaultFonts = {
         emoji = [ "Noto Color Emoji" ];
         monospace = [ "FiraCode Nerd Font" ];
-        sansSerif = [ "Noto Sans CJK SC" "Source Han Sans SC" ];
-        serif = [ "Noto Serif CJK SC" "Source Han Serif SC" ];
+        sansSerif = [
+          "Noto Sans CJK SC"
+          "Source Han Sans SC"
+        ];
+        serif = [
+          "Noto Serif CJK SC"
+          "Source Han Serif SC"
+        ];
       };
     };
   };

@@ -116,15 +116,21 @@
 
     onedrivegui
 
-    warp-terminal
+    (warp-terminal.override { waylandSupport = true; })
 
     polkit-kde-agent
 
     xdg-utils
 
-    wineWowPackages.waylandFull
+    (wine.override {
+      wineRelease = "wayland";
+      wineBuild = "wineWow";
+      openglSupport = true;
+      vulkanSupport = true;
+      waylandSupport = true;
+    })
 
-    winetricks
+    bottles-unwrapped
 
     motrix
 
