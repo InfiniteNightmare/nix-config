@@ -1,9 +1,13 @@
-{ pkgs, ... }:
+{ inputs, pkgs, ... }:
 {
   programs.anyrun = {
     enable = true;
     config = {
-      plugins = with anyrun.packages.${pkgs.system}; [ anyrun-with-all-plugins ];
+      plugins = with inputs.anyrun.packages.${pkgs.system}; [
+        applications
+        rink
+        translate
+      ];
       x = {
         fraction = 0.5;
       };
@@ -21,18 +25,32 @@
       showResultsImmediately = false;
       maxEntries = null;
     };
-    # extraCss = ''
-    #   .some_class {
-    #     background: red;
-    #   }
-    # '';
+    extraCss = ''
+      #window {
+        background-color: rgba(0, 0, 0, 0);
+      }
 
-    # extraConfigFiles."some-plugin.ron".text = ''
-    #   Config(
-    #     // for any other plugin
-    #     // this file will be put in ~/.config/anyrun/some-plugin.ron
-    #     // refer to docs of xdg.configFile for available options
-    #   )
-    # '';
+      box#main {
+        border-radius: 10px;
+        background-color: @theme_bg_color;
+      }
+
+      list#main {
+        background-color: rgba(0, 0, 0, 0);
+        border-radius: 10px;
+      }
+
+      list#plugin {
+        background-color: rgba(0, 0, 0, 0);
+      }
+
+      label#match-desc {
+        font-size: 10px;
+      }
+
+      label#plugin {
+        font-size: 14px;
+      }
+    '';
   };
 }
