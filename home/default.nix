@@ -13,12 +13,6 @@
   home.username = "shb";
   home.homeDirectory = "/home/shb";
 
-  # Wayland fcitx5 support
-  nixpkgs.config = {
-    microsoft-edge.commandLineArgs = "--enable-wayland-ime";
-    vscode.commandLineArgs = "--enable-wayland-ime";
-  };
-
   home.packages = with pkgs; [
     fastfetch
     joshuto # terminal file manager
