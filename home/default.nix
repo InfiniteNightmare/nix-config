@@ -2,6 +2,7 @@
 {
   imports = [
     # ./eww
+    ./anyrun
     ./program
     ./fcitx5
     ./hyprland
