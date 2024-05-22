@@ -77,6 +77,7 @@
     pciutils # lspci
     usbutils # lsusb
     hdparm
+    cpu-x
 
     # disk tools
     smartmontools
