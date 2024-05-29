@@ -10,6 +10,8 @@
     ".config/starship.toml".source = ./starship.toml;
 
     ".config/zellij/config.kdl".source = ./zellij.kdl;
+
+    ".config/zoxide.nu".source = ./zoxide.nu;
   };
 
   programs = {
@@ -68,5 +70,7 @@
     };
 
     zellij.enable = true;
+
+    zoxide.enable = true;
   };
 }
