@@ -133,6 +133,8 @@
 
     (wpsoffice.override { useChineseVersion = true; })
 
+    pandoc
+
     gimp
   ];
 
