@@ -144,6 +144,11 @@
     userEmail = "742851870@qq.com";
   };
 
+  programs.obs-studio = {
+    enable = true;
+    plugins = with pkgs.obs-studio-plugins; [ ];
+  };
+
   xdg.portal = {
     enable = true;
     xdgOpenUsePortal = true;
