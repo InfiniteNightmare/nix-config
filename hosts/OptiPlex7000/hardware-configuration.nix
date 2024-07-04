@@ -43,7 +43,7 @@
   };
 
   fileSystems."/run/media/MyPassport" = {
-    device = "/dev/sdc1";
+    device = "/dev/disk/by-uuid/1476A7D476A7B4C0";
     fsType = "ntfs-3g";
     options = [ "rw" ];
   };
@@ -64,9 +64,9 @@
 
   nixpkgs.hostPlatform = lib.mkDefault "x86_64-linux";
   hardware.cpu.intel.updateMicrocode = lib.mkDefault config.hardware.enableRedistributableFirmware;
-  hardware.opengl = {
+  hardware.graphics = {
     extraPackages = with pkgs; [ amdvlk ];
     extraPackages32 = with pkgs; [ driversi686Linux.amdvlk ];
-    driSupport32Bit = true;
+    enable32Bit = true;
   };
 }

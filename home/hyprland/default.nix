@@ -70,9 +70,9 @@
       };
 
       # See https://wiki.hyprland.org/Configuring/Master-Layout/ for more
-      master = {
-        new_is_master = true;
-      };
+      # master = {
+      # new_is_master = true;
+      # };
 
       # https://wiki.hyprland.org/Configuring/Variables/#misc
       misc = {
@@ -82,11 +82,14 @@
 
       "exec-once" = [
         "${pkgs.polkit-kde-agent}/libexec/polkit-kde-authentication-agent-1"
+        "${pkgs.xdg-desktop-portal-hyprland}/libexec/xdg-desktop-portal-hyprland"
+        "dbus-update-activation-environment --systemd --all"
         "dunst"
         "udiskie -t"
         "waybar"
         "clash-verge"
         "fcitx5"
+        "snipaste"
         "wl-paste --type text --watch cliphist store"
         "wl-paste --type image --watch cliphist store"
       ];
