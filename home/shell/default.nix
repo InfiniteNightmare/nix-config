@@ -12,6 +12,8 @@
     ".config/zellij/config.kdl".source = ./zellij.kdl;
 
     ".config/zoxide.nu".source = ./zoxide.nu;
+
+    ".config/.wezterm.lua".source = ./wezterm.lua;
   };
 
   programs = {
@@ -69,8 +71,15 @@
       };
     };
 
+    wezterm.enable = true;
+
     zellij.enable = true;
 
     zoxide.enable = true;
+
+    yazi = {
+      enable = true;
+      enableNushellIntegration = true;
+    };
   };
 }

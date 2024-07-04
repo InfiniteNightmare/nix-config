@@ -3,7 +3,7 @@
   imports = [
     # ./eww
     ./anyrun
-    ./program
+    ./editor
     ./fcitx5
     ./hyprland
     ./waybar
@@ -15,7 +15,6 @@
 
   home.packages = with pkgs; [
     fastfetch
-    joshuto # terminal file manager
 
     # archives
     zip
@@ -136,6 +135,18 @@
     pandoc
 
     gimp
+
+    xdg-desktop-portal-hyprland
+
+    grim
+
+    slurp
+
+    snipaste
+
+    fluent-reader
+
+    devbox
   ];
 
   programs.git = {
@@ -146,7 +157,7 @@
 
   programs.obs-studio = {
     enable = true;
-    plugins = with pkgs.obs-studio-plugins; [ ];
+    plugins = with pkgs.obs-studio-plugins; [ wlrobs ];
   };
 
   xdg.portal = {
