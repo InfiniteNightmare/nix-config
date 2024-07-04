@@ -147,6 +147,8 @@
     fluent-reader
 
     devbox
+
+    neovide
   ];
 
   programs.git = {
