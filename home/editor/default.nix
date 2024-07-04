@@ -38,5 +38,9 @@
         };
       };
     };
+
+    neovim = {
+      enable = true;
+    };
   };
 }
