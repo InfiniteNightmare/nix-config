@@ -161,6 +161,10 @@
       autoStart = true;
       tunMode = true;
     };
+    nix-ld = {
+      enable = true;
+      package = pkgs.nix-ld-rs;
+    };
   };
 
   programs.ssh.hostKeyAlgorithms = [

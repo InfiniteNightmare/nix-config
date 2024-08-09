@@ -8,7 +8,9 @@
       extensions = with pkgs.vscode-extensions; [
         bbenoist.nix
         eamodio.gitlens
+        ms-vscode.hexeditor
         ms-python.python
+        ms-toolsai.jupyter
         ms-vscode-remote.remote-ssh
         mkhl.direnv
       ];
