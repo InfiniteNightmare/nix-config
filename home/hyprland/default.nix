@@ -92,6 +92,7 @@
         "snipaste"
         "wl-paste --type text --watch cliphist store"
         "wl-paste --type image --watch cliphist store"
+        "kando"
       ];
 
       "$mainMod" = "SUPER";
@@ -114,8 +115,8 @@
         "$mainMod, down, movefocus, d"
 
         # Scroll through existing workspaces with mainMod + scroll
-        "$mainMod, mouse_down, workspace, e+1"
-        "$mainMod, mouse_up, workspace, e-1"
+        "$mainMod, mouse_down, workspace, e-1"
+        "$mainMod, mouse_up, workspace, e+1"
 
         "$mainMod, 1, workspace, 1"
         "$mainMod, 2, workspace, 2"
@@ -138,11 +139,22 @@
         "$mainMod SHIFT, 8, movetoworkspace, 8"
         "$mainMod SHIFT, 9, movetoworkspace, 9"
         "$mainMod SHIFT, 0, movetoworkspace, 10"
+
+        "CTRL, Space, global, kando:example-menu"
+        ",mouse:274, global, kando:example-menu"
       ];
       bindm = [
         # Move/resize windows with mainMod + LMB/RMB and dragging
         "$mainMod, mouse:272, movewindow"
         "$mainMod, mouse:273, resizewindow"
+      ];
+      windowrule = [
+        "noblur, kando"
+        "size 100% 100%, kando"
+        "noborder, kando"
+        "noanim, kando"
+        "float, kando"
+        "pin, kando"
       ];
       windowrulev2 = [
         "move 290 0, class:(th)(.*)(\.exe)"
