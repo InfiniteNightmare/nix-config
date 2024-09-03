@@ -13,7 +13,7 @@
 
     ".config/zoxide.nu".source = ./zoxide.nu;
 
-    ".config/.wezterm.lua".source = ./wezterm.lua;
+    # ".config/.wezterm.lua".source = ./wezterm.lua;
   };
 
   programs = {
@@ -71,7 +71,7 @@
       };
     };
 
-    wezterm.enable = true;
+    # wezterm.enable = true;
 
     zellij.enable = true;
 

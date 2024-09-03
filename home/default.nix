@@ -152,9 +152,7 @@
         url = "https://github.com/kando-menu/kando/releases/download/v1.2.0/Kando-1.2.0-x86_64.AppImage";
         sha256 = "1wrgy8zdjfzvlcgh7qwd7ml29mgqdm9zm26r73gwhfg7yzsnbb4i";
       };
-      extraPkgs = pkgs: with pkgs; [ ];
     })
-
   ];
 
   programs.git = {
