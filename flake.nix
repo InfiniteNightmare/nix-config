@@ -1,6 +1,8 @@
 {
   description = "My NixOS flake configuration";
 
+  # outputs = inputs: import ./outputs inputs;
+
   # the nixConfig here only affects the flake itself, not the system configuration!
   # nixConfig = {
   # substituers will be appended to the default substituters when fetching packages
@@ -69,11 +71,13 @@
 
                 home-manager.users.shb = {
                   imports = [
-                    ./home
+                    ./modules
                     anyrun.homeManagerModules.anyrun
                   ];
                 };
               }
+
+              (args: { nixpkgs.overlays = import ./overlays args; })
             ];
           };
       };
