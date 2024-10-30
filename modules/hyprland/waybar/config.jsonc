@@ -2,23 +2,25 @@
     "position": "top",
     "layer": "top",
   
-    "modules-left": ["custom/launcher", "temperature", "backlight", "hyprland/workspaces"],
+    "modules-left": ["custom/launcher", "temperature", "hyprland/workspaces"],
     "modules-center": ["custom/playerctl"],
     "modules-right": [
       "mpd",
-      "pulseaudio",
+      "wireplumber",
       "battery",
-      "memory",
       "cpu",
+      "memory",
+      "custom/notification",
       "network",
       "clock",
       "idle_inhibitor",
       "custom/powermenu",
-      "tray",
+      "tray"
     ],
     "hyprland/workspaces": {
-      "format": "{icon}",
+      // "format": "{icon}",
       "on-click": "activate",
+      /*
       "format-icons": {
         "1": "",
         "2": "",
@@ -33,6 +35,7 @@
         "focused": "",
         "default": "",
       },
+      */
     },
   
     "clock": {
@@ -40,14 +43,14 @@
       "align": 0,
       "rotate": 0,
       "tooltip-format": "<big>{:%B %Y}</big>\n<tt><small>{calendar}</small></tt>",
-      "format": " {:%H:%M}",
-      "format-alt": " {:%a %b %d, %G}",
+      "format": "  {:%H:%M}",
+      "format-alt": "  {:%a %b %d, %G}",
     },
     "cpu": {
       "format": "\udb80\udf5b {usage}%",
       "interval": 1,
-      "on-click-middle": "kitty btop",
-      "on-click-right": "kitty btop",
+      "on-click-middle": "alacritty -e zenith",
+      "on-click-right": "alacritty -e zenith",
     },
     "custom/launcher": {
       "format": "\uf313 ",
@@ -56,9 +59,29 @@
       "on-click-right": "exec wallpaper_random",
       "tooltip": false,
     },
+    "custom/notification": {
+      "tooltip": false,
+      "format": "{icon}<sup> {}</sup>",
+      "format-icons": {
+        "notification" : "󱅫",
+        "none" : "",
+        "dnd-notification" : " ",
+        "dnd-none" : "󰂛",
+        "inhibited-notification" : " ",
+        "inhibited-none" : "",
+        "dnd-inhibited-notification" : " ",
+        "dnd-inhibited-none" : " "
+      },
+      "return-type" : "json",
+      "exec-if" : "which swaync-client",
+      "exec" : "swaync-client -swb",
+      "on-click" : "sleep 0.1 && swaync-client -t -sw",
+      "on-click-right" : "sleep 0.1 && swaync-client -d -sw",
+      "escape" : true
+    },    
     "custom/powermenu": {
       "format": "\uf011",
-      "on-click": "$HOME/.config/hypr/scripts/wlogout",
+      "on-click": "wlogout",
       "tooltip": false,
     },
     "idle_inhibitor": {
@@ -114,41 +137,27 @@
     "network": {
       "interval": 5,
       //"interface": "wlan*", // (Optional) To force the use of this interface, set it for netspeed to work
-      "format-wifi": " {essid}",
-      "format-ethernet": " {ipaddr}/{cidr}",
-      "format-linked": " {ifname} (No IP)",
-      "format-disconnected": "睊 Disconnected",
-      "format-disabled": "睊 Disabled",
+      "format-wifi": "  {essid}",
+      "format-ethernet": "󰊗  {ipaddr}/{cidr}",
+      // "format-linked": " {ifname} (No IP)",
+      // "format-disconnected": "睊 Disconnected",
+      // "format-disabled": "睊 Disabled",
       "format-alt": " {bandwidthUpBytes} |  {bandwidthDownBytes}",
-      "tooltip-format": " {ifname} via {gwaddr}",
+      "tooltip-format": "{ifname} via {gwaddr} 󰊗",
       "on-click-middle": "nm-connection-editor",
-      "on-click-right": "kitty nmtui",
+      "on-click-right": "nmtui",
     },
-    "pulseaudio": {
-      //"format": "{volume}% {icon} {format_source}",
-      "format": "{icon} {volume}%",
-      "format-muted": " Mute",
-      "format-bluetooth": " {volume}% {format_source}",
-      "format-bluetooth-muted": " Mute",
-      "format-source": " {volume}%",
-      "format-source-muted": "",
-      "format-icons": {
-        "headphone": "",
-        "hands-free": "",
-        "headset": "",
-        "phone": "",
-        "portable": "",
-        "car": "",
-        "default": ["", "", ""],
-      },
-      "scroll-step": 5.0,
-      // Commands to execute on events
-      "on-click": "amixer set Master toggle",
-      "on-click-right": "pavucontrol",
-      "smooth-scrolling-threshold": 1,
+    "wireplumber": {
+        "format": "{icon}  {volume}%",
+        "format-muted": "",
+        "on-click": "pwvucontrol",
+        "format-icons": ["", "", ""]
     },
     "temperature": {
-      "format": "\uf2c9 {temperatureC}\u00b0C",
+      "thermal-zone": 1,
+      "critical-threshold": 80,
+      "format-critical": " {temperatureC}°C",
+      "format": " {temperatureC}°C",
       "tooltip": false,
     },
     "backlight": {
