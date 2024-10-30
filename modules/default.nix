@@ -77,6 +77,7 @@
     usbutils # lsusb
     hdparm
     cpu-x
+    dmidecode
 
     # disk tools
     smartmontools
@@ -103,10 +104,11 @@
 
     eww
 
-    dunst
+    swaynotificationcenter
 
     keepassxc
 
+    onedrive
     onedrivegui
 
     polkit-kde-agent
@@ -125,8 +127,6 @@
 
     motrix
 
-    (wpsoffice.override { useChineseVersion = true; })
-
     pandoc
 
     gimp
@@ -139,17 +139,57 @@
 
     fluent-reader
 
+    zed-editor
+
     devbox
 
     neovide
 
-    (pkgs.appimageTools.wrapType2 {
-      name = "kando";
-      src = pkgs.fetchurl {
-        url = "https://github.com/kando-menu/kando/releases/download/v1.3.0/Kando-1.3.0-x86_64.AppImage";
-        sha256 = "1a5h0yr6myi98l1js39hd8ndysm1wr07b3m0h8wwdbd5lnnyz3ip";
-      };
-    })
+    # (pkgs.appimageTools.wrapType2 {
+    # name = "kando";
+    # src = pkgs.fetchurl {
+    # url = "https://github.com/kando-menu/kando/releases/download/v1.3.0/Kando-1.3.0-x86_64.AppImage";
+    # sha256 = "1a5h0yr6myi98l1js39hd8ndysm1wr07b3m0h8wwdbd5lnnyz3ip";
+    # };
+    # })
+
+    # bilibili
+
+    pwvucontrol
+
+    netease-cloud-music-gtk
+
+    # sddm-astronaut
+    dracula-icon-theme
+
+    hyprcursor
+    xcur2png
+
+    xpipe
+
+    syncthingtray
+
+    wayvnc
+    wlvncc
+
+    rustdesk
+    # rustdesk-server
+    # pm2
+    lan-mouse
+    localsend
+
+    xplorer
+
+    czkawka
+
+    follow
+
+    gtypist
+    ttyper
+
+    hyprpanel
+
+    ags
   ];
 
   programs.git = {
@@ -168,6 +208,10 @@
     enableBashIntegration = true;
     enableNushellIntegration = true;
     nix-direnv.enable = true;
+  };
+
+  services.syncthing = {
+    enable = true;
   };
 
   # This value determines the Home Manager release that your

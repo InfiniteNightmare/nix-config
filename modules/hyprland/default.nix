@@ -84,15 +84,18 @@
         "${pkgs.polkit-kde-agent}/libexec/polkit-kde-authentication-agent-1"
         "${pkgs.xdg-desktop-portal-hyprland}/libexec/xdg-desktop-portal-hyprland"
         "dbus-update-activation-environment --systemd --all"
-        "dunst"
+        "swaync"
         "udiskie -t"
         "waybar"
+        "clash-verge-service"
         "clash-verge"
         "fcitx5"
         "snipaste"
         "wl-paste --type text --watch cliphist store"
         "wl-paste --type image --watch cliphist store"
         "kando"
+        "blueman-applet"
+        "lan-mouse --daemon"
       ];
 
       "$mainMod" = "SUPER";
@@ -179,9 +182,19 @@
       source = ./waybar;
       recursive = true;
     };
+    "lan-mouse/config.toml".source = ./lan-mouse/config.toml;
+  };
+
+  xdg.dataFile = {
+    "icons" = {
+      source = ./hyprcursor;
+      recursive = true;
+    };
   };
 
   programs.waybar = {
     enable = true;
   };
+
+  programs.wlogout.enable = true;
 }

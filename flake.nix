@@ -36,6 +36,20 @@
       url = "github:hyprwm/hyprland-plugins";
       # inputs.hyprland.follows = "hyprland";
     };
+
+    my-nur = {
+      url = "github:InfiniteNightmare/nur-packages";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+
+    agenix = {
+      url = "github:yaxitech/ragenix";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+
+    hyprpanel.url = "github:Jas-SinghFSU/HyprPanel";
+
+    nixos-hardware.url = "github:NixOS/nixos-hardware/master";
   };
 
   outputs =
@@ -45,6 +59,8 @@
       home-manager,
       nix-ld,
       anyrun,
+      agenix,
+      nixos-hardware,
       ...
     }@inputs:
     {
@@ -61,6 +77,12 @@
             modules = [
               ./hosts/OptiPlex7000
 
+              nixos-hardware.nixosModules.common-cpu-intel
+              nixos-hardware.nixosModules.common-gpu-amd
+              nixos-hardware.nixosModules.common-gpu-intel
+              nixos-hardware.nixosModules.common-pc
+              nixos-hardware.nixosModules.common-pc-ssd
+
               home-manager.nixosModules.home-manager
               {
                 home-manager.useGlobalPkgs = true;
@@ -73,11 +95,18 @@
                   imports = [
                     ./modules
                     anyrun.homeManagerModules.anyrun
+                    agenix.homeManagerModules.default
                   ];
                 };
               }
 
               (args: { nixpkgs.overlays = import ./overlays args; })
+
+              ({
+                nixpkgs.overlays = [
+                  inputs.hyprpanel.overlay
+                ];
+              })
             ];
           };
       };

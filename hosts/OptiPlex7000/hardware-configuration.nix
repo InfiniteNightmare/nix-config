@@ -56,11 +56,11 @@
   # with explicit per-interface declarations with `networking.interfaces.<interface>.useDHCP`.
   networking.useDHCP = lib.mkDefault true;
   # networking.interfaces.enp0s31f6.useDHCP = lib.mkDefault true;
-  # networking.proxy = {
-  # httpProxy = "http://127.0.0.1:7897";
-  # httpsProxy = "http://127.0.0.1:7897";
-  # allProxy = "socks5://127.0.0.1:7897";
-  # };
+  networking.proxy = {
+    httpProxy = "http://127.0.0.1:7897";
+    httpsProxy = "http://127.0.0.1:7897";
+    allProxy = "socks5://127.0.0.1:7897";
+  };
 
   nixpkgs.hostPlatform = lib.mkDefault "x86_64-linux";
   hardware.cpu.intel.updateMicrocode = lib.mkDefault config.hardware.enableRedistributableFirmware;
@@ -68,5 +68,27 @@
     extraPackages = with pkgs; [ amdvlk ];
     extraPackages32 = with pkgs; [ driversi686Linux.amdvlk ];
     enable32Bit = true;
+  };
+  networking.firewall = {
+    enable = true;
+    allowedTCPPorts = [
+      80
+      53317
+    ];
+    allowedUDPPorts = [
+      4242
+      21116
+    ];
+    allowedTCPPortRanges = [
+      {
+        from = 21115;
+        to = 21117;
+      }
+    ];
+  };
+  hardware.bluetooth = {
+    enable = true;
+    powerOnBoot = true;
+    settings.General.Experimental = true;
   };
 }

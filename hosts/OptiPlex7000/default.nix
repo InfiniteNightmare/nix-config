@@ -52,7 +52,14 @@
       enable = true;
       wayland.enable = true;
       autoNumlock = true;
-      # theme = "Infinity-SDDM";
+      theme = "sddm-astronaut-theme";
+      package = pkgs.kdePackages.sddm;
+      extraPackages = [ pkgs.kdePackages.qt5compat ];
+      # settings = {
+      # Theme = {
+      # Current = "sddm-astronaut-theme";
+      # };
+      # };
     };
   };
 
@@ -65,7 +72,23 @@
     pulse.enable = true;
     # If you want to use JACK applications, uncomment this
     #jack.enable = true;
+
+    wireplumber.extraConfig.bluetoothEnhancements = {
+      "monitor.bluez.properties" = {
+        "bluez5.enable-sbc-xq" = true;
+        "bluez5.enable-msbc" = true;
+        "bluez5.enable-hw-volume" = true;
+        "bluez5.roles" = [
+          "hsp_hs"
+          "hsp_ag"
+          "hfp_hf"
+          "hfp_ag"
+        ];
+      };
+    };
   };
+
+  services.blueman.enable = true;
 
   # Define a user account. Don't forget to set a password with ‘passwd’.
   users.users.shb = {
@@ -73,11 +96,14 @@
     description = "Haobo Sun";
     extraGroups = [
       "networkmanager"
+      "docker"
+      "davfs2"
       "wheel"
     ];
     openssh.authorizedKeys.keys = [
       "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAICaNeGrkIkv2ImATJx9e+xL2ExOklh62megNL3rbE3CD 742851870@qq.com"
       "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIF0+hnYZo4aaoqLCtG+nW/bBhEPfzrlynRDG7mHmJpAw Termux"
+      "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAICAzO9XqJYAdnnuZcvtRLndOqFaFqtSybNKEhKh1sNZC haobosunzju@outlook.com"
     ];
     packages = with pkgs; [ ];
     shell = pkgs.nushell;
@@ -128,19 +154,23 @@
     wget
     curl
     helix
+    sddm-astronaut
+    clash-verge-rev
   ];
 
   environment.variables = {
-    EDITOR = "helix";
+    EDITOR = "hx";
     # GTK_IM_MODULE = "fcitx";
     QT_IM_MODULE = "fcitx";
     XMODIFIERS = "@im=fcitx";
     SDL_IM_MODULE = "fcitx";
     INPUT_METHOD = "fcitx";
     GLFW_IM_MODULE = "ibus";
+    HYPRCURSOR_THEME = "blue-archive-cursor-theme";
+    HYPRCURSOR_SIZE = 24;
   };
 
-  # environment.shells = [ pkgs.nushell ];
+  environment.shells = [ pkgs.nushell ];
 
   # environment.sessionVariables.NIXOS_OZONE_WL = "1";
 
@@ -155,12 +185,6 @@
   programs = {
     hyprland.enable = true;
     xwayland.enable = true;
-    clash-verge = {
-      enable = true;
-      package = pkgs.clash-verge-rev;
-      autoStart = true;
-      tunMode = true;
-    };
     nix-ld = {
       enable = true;
       package = pkgs.nix-ld-rs;
@@ -185,10 +209,51 @@
     openFirewall = true;
   };
 
+  virtualisation = {
+    docker = {
+      enable = true;
+      rootless = {
+        enable = true;
+        setSocketVariable = true;
+      };
+      daemon.settings = {
+        data-root = "/home/shb/docker-data";
+        fixed-cidr-v6 = "fd00::/80";
+        ipv6 = true;
+        "registry-mirrors" = [
+          "https://docker.1panel.dev"
+        ];
+      };
+    };
+    vmware.host.enable = true;
+  };
+
   services = {
     udisks2.enable = true;
     cpupower-gui.enable = true;
     upower.enable = true;
+    fail2ban.enable = true;
+    davfs2 = {
+      enable = true;
+      settings = {
+        globalSection = {
+          use_locks = false;
+        };
+      };
+    };
+    # rustdesk-server = {
+    #   enable = true;
+    #   openFirewall = true;
+    #   relayIP = "10.214.131.20";
+    #   extraSignalArgs = [
+    #     "-k"
+    #     "_"
+    #   ];
+    #   extraRelayArgs = [
+    #     "-k"
+    #     "_"
+    #   ];
+    # };
   };
 
   security.polkit.enable = true;
