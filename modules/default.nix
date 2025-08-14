@@ -2,11 +2,13 @@
 {
   imports = [
     # ./eww
+    # ./ags
     ./anyrun
     ./editor
     ./fcitx5
     ./hyprland
     ./shell
+    ./theme.nix
   ];
 
   home.username = "shb";
@@ -89,14 +91,21 @@
     sshpass
 
     # browser
-    (microsoft-edge.override { commandLineArgs = [ "--enable-wayland-ime" ]; })
+    # (microsoft-edge.override { commandLineArgs = [ "--enable-wayland-ime" ]; })
 
     zotero
 
     obsidian
 
     # program
+    (jetbrains.idea-ultimate.override {
+      vmopts = "-Xmx8g\n-Dawt.toolkit.name=WLToolkit";
+    })
+    (jetbrains.clion.override {
+      vmopts = "-Xmx8g\n-Dawt.toolkit.name=WLToolkit";
+    })
     jetbrains-toolbox
+    devcontainer
 
     # clipboard
     wl-clipboard
@@ -104,26 +113,17 @@
 
     eww
 
-    swaynotificationcenter
+    # swaynotificationcenter
 
     keepassxc
 
     onedrive
     onedrivegui
+    aliyun-cli
 
-    polkit-kde-agent
+    kdePackages.polkit-kde-agent-1
 
     xdg-utils
-
-    (wine.override {
-      wineRelease = "wayland";
-      wineBuild = "wineWow";
-      openglSupport = true;
-      vulkanSupport = true;
-      waylandSupport = true;
-    })
-
-    bottles-unwrapped
 
     motrix
 
@@ -145,17 +145,10 @@
 
     neovide
 
-    # (pkgs.appimageTools.wrapType2 {
-    # name = "kando";
-    # src = pkgs.fetchurl {
-    # url = "https://github.com/kando-menu/kando/releases/download/v1.3.0/Kando-1.3.0-x86_64.AppImage";
-    # sha256 = "1a5h0yr6myi98l1js39hd8ndysm1wr07b3m0h8wwdbd5lnnyz3ip";
-    # };
-    # })
-
     # bilibili
 
     pwvucontrol
+    helvum
 
     netease-cloud-music-gtk
 
@@ -169,27 +162,29 @@
 
     syncthingtray
 
-    wayvnc
-    wlvncc
+    # waynnvnc
+    # wlvncc
 
-    rustdesk
+    # rustdesk-flutter
     # rustdesk-server
     # pm2
     lan-mouse
     localsend
+    freerdp
+    # deskflow
 
-    xplorer
+    # xplorer
+    waveterm
 
     czkawka
 
-    follow
+    # follow
 
     gtypist
     ttyper
 
-    hyprpanel
-
-    ags
+    # osu-lazer
+    # taisei
   ];
 
   programs.git = {
@@ -200,7 +195,10 @@
 
   programs.obs-studio = {
     enable = true;
-    plugins = with pkgs.obs-studio-plugins; [ wlrobs ];
+    plugins = with pkgs.obs-studio-plugins; [
+      wlrobs
+      obs-pipewire-audio-capture
+    ];
   };
 
   programs.direnv = {
@@ -210,9 +208,29 @@
     nix-direnv.enable = true;
   };
 
+  programs.zen-browser = {
+    enable = true;
+    policies = {
+      DisableAppUpdate = true;
+      DisableTelemetry = true;
+    };
+    nativeMessagingHosts = [ pkgs.firefoxpwa ];
+    # Add any other native connectors here
+  };
+
   services.syncthing = {
     enable = true;
   };
+
+  gtk = {
+    font = {
+      name = "Rubik";
+      package = pkgs.google-fonts.override { fonts = [ "Rubik" ]; };
+      size = 11;
+    };
+  };
+
+  catppuccin.enable = true;
 
   # This value determines the Home Manager release that your
   # configuration is compatible with. This helps avoid breakage

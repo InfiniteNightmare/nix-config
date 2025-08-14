@@ -8,13 +8,14 @@ port = 4242
 # frontend = "gtk"
 
 # define a client on the left side with IP address 10.42.0.2
-[left]
+[bottom]
 # The hostname is optional: When no hostname is specified,
 # at least one ip address needs to be specified.
-hostname = "10.42.0.2"
+hostname = "10.42.0.3"
 # ips for ethernet and wifi
 # ips = ["10.42.0.2"]
 # optional port
+# ips = ["10.42.0.2", "10.42.0.3"]
 port = 4242
 
 activate_on_startup = true

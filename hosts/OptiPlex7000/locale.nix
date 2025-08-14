@@ -1,4 +1,18 @@
 { conifg, pkgs, ... }:
+let
+  google-fonts = (
+    pkgs.google-fonts.override {
+      fonts = [
+        # Sans
+        "Gabarito"
+        "Lexend"
+        # Serif
+        "Chakra Petch"
+        "Crimson Text"
+      ];
+    }
+  );
+in
 {
   # Select internationalisation properties.
   i18n.defaultLocale = "en_US.UTF-8";
@@ -25,13 +39,23 @@
 
   fonts = {
     packages = with pkgs; [
-      fira-code-nerdfont
+      material-symbols
+      material-icons
+      nerd-fonts.fira-code
+      nerd-fonts.ubuntu
+      nerd-fonts.ubuntu-mono
+      nerd-fonts.fantasque-sans-mono
+      nerd-fonts.jetbrains-mono
+      nerd-fonts.mononoki
+      nerd-fonts.space-mono
       noto-fonts-cjk-sans
       noto-fonts-cjk-serif
       noto-fonts-emoji
       source-han-sans
       source-han-serif
+      google-fonts
     ];
+    fontDir.enable = true;
     fontconfig = {
       antialias = true;
       hinting.enable = true;

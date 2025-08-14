@@ -42,14 +42,28 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
+    # more-waita = {
+    # url = "github:somepaulo/MoreWaita";
+    # flake = false;
+    # };
+
     agenix = {
       url = "github:yaxitech/ragenix";
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
-    hyprpanel.url = "github:Jas-SinghFSU/HyprPanel";
+    ags.url = "github:Aylur/ags";
+
+    catppuccin.url = "github:catppuccin/nix";
 
     nixos-hardware.url = "github:NixOS/nixos-hardware/master";
+
+    zen-browser = {
+      url = "github:0xc000022070/zen-browser-flake";
+      # IMPORTANT: we're using "libgbm" and is only available in unstable so ensure
+      # to have it up-to-date or simply don't specify the nixpkgs input
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
   outputs =
@@ -60,6 +74,7 @@
       nix-ld,
       anyrun,
       agenix,
+      catppuccin,
       nixos-hardware,
       ...
     }@inputs:
@@ -94,19 +109,15 @@
                 home-manager.users.shb = {
                   imports = [
                     ./modules
-                    anyrun.homeManagerModules.anyrun
+                    # anyrun.homeManagerModules.anyrun
                     agenix.homeManagerModules.default
+                    catppuccin.homeModules.catppuccin
+                    inputs.zen-browser.homeModules.default
                   ];
                 };
               }
 
               (args: { nixpkgs.overlays = import ./overlays args; })
-
-              ({
-                nixpkgs.overlays = [
-                  inputs.hyprpanel.overlay
-                ];
-              })
             ];
           };
       };

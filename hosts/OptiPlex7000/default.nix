@@ -48,19 +48,19 @@
 
   services.displayManager = {
     enable = true;
-    sddm = {
-      enable = true;
-      wayland.enable = true;
-      autoNumlock = true;
-      theme = "sddm-astronaut-theme";
-      package = pkgs.kdePackages.sddm;
-      extraPackages = [ pkgs.kdePackages.qt5compat ];
-      # settings = {
-      # Theme = {
-      # Current = "sddm-astronaut-theme";
-      # };
-      # };
-    };
+    # sddm = {
+    # enable = true;
+    # wayland.enable = true;
+    # autoNumlock = true;
+    # theme = "sddm-astronaut-theme";
+    # package = pkgs.kdePackages.sddm;
+    # extraPackages = [ pkgs.kdePackages.qt5compat ];
+    # settings = {
+    # Theme = {
+    # Current = "sddm-astronaut-theme";
+    # };
+    # };
+    # };
   };
 
   # rtkit is optional but recommended
@@ -71,7 +71,7 @@
     alsa.support32Bit = true;
     pulse.enable = true;
     # If you want to use JACK applications, uncomment this
-    #jack.enable = true;
+    jack.enable = true;
 
     wireplumber.extraConfig.bluetoothEnhancements = {
       "monitor.bluez.properties" = {
@@ -113,10 +113,10 @@
   nixpkgs.config.allowUnfree = true;
 
   # # Wayland fcitx5 support
-  # nixpkgs.config = {
-  #   microsoft-edge.commandLineArgs = "--enable-wayland-ime";
-  #   vscode.commandLineArgs = "--enable-wayland-ime";
-  # };
+  nixpkgs.config = {
+    microsoft-edge.commandLineArgs = "--enable-wayland-ime";
+    vscode.commandLineArgs = "--enable-wayland-ime";
+  };
 
   nix.settings = {
     experimental-features = [
@@ -166,13 +166,11 @@
     SDL_IM_MODULE = "fcitx";
     INPUT_METHOD = "fcitx";
     GLFW_IM_MODULE = "ibus";
-    HYPRCURSOR_THEME = "blue-archive-cursor-theme";
-    HYPRCURSOR_SIZE = 24;
   };
 
   environment.shells = [ pkgs.nushell ];
 
-  # environment.sessionVariables.NIXOS_OZONE_WL = "1";
+  environment.sessionVariables.NIXOS_OZONE_WL = "1";
 
   # Some programs need SUID wrappers, can be configured further or are
   # started in user sessions.
@@ -184,6 +182,7 @@
 
   programs = {
     hyprland.enable = true;
+    niri.enable = true;
     xwayland.enable = true;
     nix-ld = {
       enable = true;
@@ -212,10 +211,8 @@
   virtualisation = {
     docker = {
       enable = true;
-      rootless = {
-        enable = true;
-        setSocketVariable = true;
-      };
+      # storageDriver = "btrfs";
+      autoPrune.enable = true;
       daemon.settings = {
         data-root = "/home/shb/docker-data";
         fixed-cidr-v6 = "fd00::/80";
@@ -223,9 +220,11 @@
         "registry-mirrors" = [
           "https://docker.1panel.dev"
         ];
+        http-proxy = "http://127.0.0.1:7897";
+        https-proxy = "http://127.0.0.1:7897";
       };
     };
-    vmware.host.enable = true;
+    # vmware.host.enable = true;
   };
 
   services = {
