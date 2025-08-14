@@ -7,9 +7,9 @@
       recursive = true;
     };
 
-    ".config/starship.toml".source = ./starship.toml;
+    # ".config/starship.toml".source = ./starship.toml;
 
-    ".config/zellij/config.kdl".source = ./zellij.kdl;
+    # ".config/zellij/config.kdl".source = ./zellij.kdl;
 
     ".config/zoxide.nu".source = ./zoxide.nu;
 
@@ -43,31 +43,6 @@
         };
         scrolling.multiplier = 5;
         selection.save_to_clipboard = true;
-      };
-    };
-
-    helix = {
-      enable = true;
-      settings = {
-        theme = "autumn_night_transparent";
-        editor.cursor-shape = {
-          normal = "block";
-          insert = "bar";
-          select = "underline";
-        };
-      };
-      languages.language = [
-        {
-          name = "nix";
-          auto-format = true;
-          formatter.command = "${pkgs.nixfmt-rfc-style}/bin/nixfmt";
-        }
-      ];
-      themes = {
-        autumn_night_transparent = {
-          "inherits" = "autumn_night";
-          "ui.background" = { };
-        };
       };
     };
 

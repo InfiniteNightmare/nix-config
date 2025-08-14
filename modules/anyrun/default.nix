@@ -6,7 +6,9 @@
       plugins = with inputs.anyrun.packages.${pkgs.system}; [
         applications
         rink
-        translate
+        stdin
+        shell
+        symbols
       ];
       x = {
         fraction = 0.5;
@@ -20,37 +22,14 @@
       hideIcons = false;
       ignoreExclusiveZones = false;
       layer = "overlay";
-      hidePluginInfo = false;
-      closeOnClick = false;
+      hidePluginInfo = true;
+      closeOnClick = true;
       showResultsImmediately = false;
       maxEntries = null;
     };
-    extraCss = ''
-      #window {
-        background-color: rgba(0, 0, 0, 0);
-      }
+  };
 
-      box#main {
-        border-radius: 10px;
-        background-color: @theme_bg_color;
-      }
-
-      list#main {
-        background-color: rgba(0, 0, 0, 0);
-        border-radius: 10px;
-      }
-
-      list#plugin {
-        background-color: rgba(0, 0, 0, 0);
-      }
-
-      label#match-desc {
-        font-size: 10px;
-      }
-
-      label#plugin {
-        font-size: 14px;
-      }
-    '';
+  xdg.configFile = {
+    "anyrun/style.css".source = ./style.css;
   };
 }

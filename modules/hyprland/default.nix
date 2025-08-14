@@ -16,9 +16,11 @@
     #   hyprbars
     # ];
     settings = {
+      monitor = "DP-5, 5120x2160@75, 0x0, 1.6, bitdepth, 10";
+
       general = {
-        gaps_in = 5;
-        gaps_out = 20;
+        gaps_in = 2;
+        gaps_out = 5;
         border_size = 2;
         # https://wiki.hyprland.org/Configuring/Variables/#variable-types for info about colors
         "col.active_border" = "rgba(33ccffee) rgba(00ff99ee) 45deg";
@@ -35,10 +37,10 @@
         # Change transparency of focused and unfocused windows
         active_opacity = 1.0;
         inactive_opacity = 1.0;
-        drop_shadow = true;
-        shadow_range = 4;
-        shadow_render_power = 3;
-        "col.shadow" = "rgba(1a1a1aee)";
+        # drop_shadow = true;
+        # shadow_range = 4;
+        # shadow_render_power = 3;
+        # "col.shadow" = "rgba(1a1a1aee)";
         # https://wiki.hyprland.org/Configuring/Variables/#blur
         blur = {
           enabled = true;
@@ -81,10 +83,10 @@
       };
 
       "exec-once" = [
-        "${pkgs.polkit-kde-agent}/libexec/polkit-kde-authentication-agent-1"
+        "${pkgs.kdePackages.polkit-kde-agent-1}/libexec/polkit-kde-authentication-agent-1"
         "${pkgs.xdg-desktop-portal-hyprland}/libexec/xdg-desktop-portal-hyprland"
         "dbus-update-activation-environment --systemd --all"
-        "swaync"
+        # "swaync"
         "udiskie -t"
         "waybar"
         "clash-verge-service"
@@ -93,7 +95,6 @@
         "snipaste"
         "wl-paste --type text --watch cliphist store"
         "wl-paste --type image --watch cliphist store"
-        "kando"
         "blueman-applet"
         "lan-mouse --daemon"
       ];
@@ -143,8 +144,8 @@
         "$mainMod SHIFT, 9, movetoworkspace, 9"
         "$mainMod SHIFT, 0, movetoworkspace, 10"
 
-        "CTRL, Space, global, kando:example-menu"
-        ",mouse:274, global, kando:example-menu"
+        # "CTRL, Space, global, kando:example-menu"
+        # ",mouse:274, global, kando:example-menu"
       ];
       bindm = [
         # Move/resize windows with mainMod + LMB/RMB and dragging
@@ -152,12 +153,12 @@
         "$mainMod, mouse:273, resizewindow"
       ];
       windowrule = [
-        "noblur, kando"
-        "size 100% 100%, kando"
-        "noborder, kando"
-        "noanim, kando"
-        "float, kando"
-        "pin, kando"
+        # "noblur, kando"
+        # "size 100% 100%, kando"
+        # "noborder, kando"
+        # "noanim, kando"
+        # "float, kando"
+        # "pin, kando"
       ];
       windowrulev2 = [
         "move 290 0, class:(th)(.*)(\.exe)"
@@ -183,13 +184,6 @@
       recursive = true;
     };
     "lan-mouse/config.toml".source = ./lan-mouse/config.toml;
-  };
-
-  xdg.dataFile = {
-    "icons" = {
-      source = ./hyprcursor;
-      recursive = true;
-    };
   };
 
   programs.waybar = {

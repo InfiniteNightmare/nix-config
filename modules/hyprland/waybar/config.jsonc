@@ -5,7 +5,7 @@
     "modules-left": ["custom/launcher", "temperature", "hyprland/workspaces"],
     "modules-center": ["custom/playerctl"],
     "modules-right": [
-      "mpd",
+      // "mpd",
       "wireplumber",
       "battery",
       "cpu",
@@ -15,6 +15,7 @@
       "clock",
       "idle_inhibitor",
       "custom/powermenu",
+      "mpris",
       "tray"
     ],
     "hyprland/workspaces": {
@@ -134,6 +135,18 @@
         "Playing": "<span foreground='#82db97'></span>",
       },
     },
+    "mpris": {
+	    "format": "DEFAULT: {player_icon} {dynamic}",
+	    "format-paused": "DEFAULT: {status_icon} <i>{dynamic}</i>",
+	    "player-icons": {
+		    "default": "▶",
+		    "mpv": "🎵"
+	    },
+	    "status-icons": {
+		    "paused": "⏸"
+	    },
+	    // "ignored-players": ["firefox"]
+    },
     "network": {
       "interval": 5,
       //"interface": "wlan*", // (Optional) To force the use of this interface, set it for netspeed to work
@@ -150,7 +163,7 @@
     "wireplumber": {
         "format": "{icon}  {volume}%",
         "format-muted": "",
-        "on-click": "pwvucontrol",
+        "on-click": "helvum",
         "format-icons": ["", "", ""]
     },
     "temperature": {
