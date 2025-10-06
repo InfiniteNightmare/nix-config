@@ -26,19 +26,18 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
-    anyrun = {
-      url = "github:Kirottu/anyrun";
+    my-nur = {
+      url = "github:InfiniteNightmare/nur-packages";
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
-    # hyprland.url = "git+https://github.com/hyprwm/Hyprland?submodules=1";
-    hyprland-plugins = {
-      url = "github:hyprwm/hyprland-plugins";
-      # inputs.hyprland.follows = "hyprland";
+    dankMaterialShell = {
+      url = "github:AvengeMedia/DankMaterialShell";
+      inputs.nixpkgs.follows = "nixpkgs";
     };
 
-    my-nur = {
-      url = "github:InfiniteNightmare/nur-packages";
+    niri = {
+      url = "github:sodiboo/niri-flake";
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
@@ -72,7 +71,6 @@
       nixpkgs,
       home-manager,
       nix-ld,
-      anyrun,
       agenix,
       catppuccin,
       nixos-hardware,
@@ -80,7 +78,7 @@
     }@inputs:
     {
       nixosConfigurations = {
-        OptiPlex7000 =
+        thinkbook =
           let
             system = "x86_64-linux";
           in
@@ -90,7 +88,7 @@
               inherit inputs;
             };
             modules = [
-              ./hosts/OptiPlex7000
+              ./hosts/thinkbook
 
               nixos-hardware.nixosModules.common-cpu-intel
               nixos-hardware.nixosModules.common-gpu-amd
@@ -106,13 +104,15 @@
                   inherit inputs;
                 };
 
-                home-manager.users.shb = {
+                home-manager.users.charname = {
                   imports = [
                     ./modules
-                    # anyrun.homeManagerModules.anyrun
                     agenix.homeManagerModules.default
                     catppuccin.homeModules.catppuccin
                     inputs.zen-browser.homeModules.default
+                    inputs.niri.homeModules.niri
+                    inputs.dankMaterialShell.homeModules.dankMaterialShell.default
+                    inputs.dankMaterialShell.homeModules.dankMaterialShell.niri
                   ];
                 };
               }

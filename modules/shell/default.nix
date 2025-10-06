@@ -1,5 +1,8 @@
-{ config, pkgs, ... }:
+{ ... }:
 {
+  imports = [
+    ./fish
+  ];
 
   home.file = {
     ".config/nushell" = {
@@ -7,31 +10,27 @@
       recursive = true;
     };
 
-    # ".config/starship.toml".source = ./starship.toml;
-
     # ".config/zellij/config.kdl".source = ./zellij.kdl;
-
-    ".config/zoxide.nu".source = ./zoxide.nu;
-
-    # ".config/.wezterm.lua".source = ./wezterm.lua;
   };
 
   programs = {
-    nushell = {
-      enable = true;
-      shellAliases = {
-        vi = "hx";
-        vim = "hx";
-        nano = "hx";
-      };
-    };
+    # nushell = {
+    #   enable = true;
+    #   shellAliases = {
+    #     vi = "hx";
+    #     vim = "hx";
+    #     nano = "hx";
+    #   };
+    # };
 
-    carapace = {
-      enable = true;
-      enableNushellIntegration = true;
-    };
+    # carapace = {
+    #   enable = true;
+    #   enableNushellIntegration = true;
+    # };
 
     starship.enable = true;
+
+
 
     alacritty = {
       enable = true;

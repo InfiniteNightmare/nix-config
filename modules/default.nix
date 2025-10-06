@@ -1,18 +1,14 @@
-{ config, pkgs, ... }:
+{ pkgs, ... }:
 {
   imports = [
-    # ./eww
-    # ./ags
-    ./anyrun
     ./editor
     ./fcitx5
-    ./hyprland
     ./shell
-    ./theme.nix
+    ./niri
   ];
 
-  home.username = "shb";
-  home.homeDirectory = "/home/shb";
+  home.username = "charname";
+  home.homeDirectory = "/home/charname";
 
   home.packages = with pkgs; [
     fastfetch
@@ -98,28 +94,15 @@
     obsidian
 
     # program
-    (jetbrains.idea-ultimate.override {
-      vmopts = "-Xmx8g\n-Dawt.toolkit.name=WLToolkit";
-    })
-    (jetbrains.clion.override {
-      vmopts = "-Xmx8g\n-Dawt.toolkit.name=WLToolkit";
-    })
-    jetbrains-toolbox
     devcontainer
 
     # clipboard
     wl-clipboard
     cliphist
 
-    eww
-
     # swaynotificationcenter
 
     keepassxc
-
-    onedrive
-    onedrivegui
-    aliyun-cli
 
     kdePackages.polkit-kde-agent-1
 
@@ -155,25 +138,15 @@
     # sddm-astronaut
     dracula-icon-theme
 
-    hyprcursor
     xcur2png
-
-    xpipe
-
-    syncthingtray
 
     # waynnvnc
     # wlvncc
 
-    # rustdesk-flutter
-    # rustdesk-server
-    # pm2
-    lan-mouse
     localsend
     freerdp
     # deskflow
 
-    # xplorer
     waveterm
 
     czkawka
@@ -185,6 +158,9 @@
 
     # osu-lazer
     # taisei
+
+    nil
+    nixd
   ];
 
   programs.git = {
@@ -221,16 +197,9 @@
   services.syncthing = {
     enable = true;
   };
-
-  gtk = {
-    font = {
-      name = "Rubik";
-      package = pkgs.google-fonts.override { fonts = [ "Rubik" ]; };
-      size = 11;
-    };
-  };
-
   catppuccin.enable = true;
+
+  programs.dankMaterialShell.enable = true;
 
   # This value determines the Home Manager release that your
   # configuration is compatible with. This helps avoid breakage
