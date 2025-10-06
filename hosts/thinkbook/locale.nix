@@ -1,18 +1,4 @@
 { pkgs, ... }:
-let
-  google-fonts = (
-    pkgs.google-fonts.override {
-      fonts = [
-        # Sans
-        "Gabarito"
-        "Lexend"
-        # Serif
-        "Chakra Petch"
-        "Crimson Text"
-      ];
-    }
-  );
-in
 {
   # Select internationalisation properties.
   i18n.defaultLocale = "en_US.UTF-8";
@@ -42,18 +28,11 @@ in
       material-symbols
       material-icons
       nerd-fonts.fira-code
-      nerd-fonts.ubuntu
-      nerd-fonts.ubuntu-mono
-      nerd-fonts.fantasque-sans-mono
-      nerd-fonts.jetbrains-mono
-      nerd-fonts.mononoki
-      nerd-fonts.space-mono
       noto-fonts-cjk-sans
       noto-fonts-cjk-serif
       noto-fonts-emoji
       source-han-sans
       source-han-serif
-      google-fonts
     ];
     fontDir.enable = true;
     fontconfig = {
@@ -71,6 +50,13 @@ in
           "Source Han Serif SC"
         ];
       };
+      # Include Windows fonts directory exposed via bind mount
+      # This extends fontconfig search path so Segoe* etc. are indexed.
+      localConf = ''
+        <fontconfig>
+          <dir>/var/lib/windows-ro/Windows/Fonts</dir>
+        </fontconfig>
+      '';
     };
   };
 }

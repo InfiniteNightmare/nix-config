@@ -1,4 +1,4 @@
-{ config, pkgs, ... }:
+{ pkgs, ... }:
 
 {
   xdg.configFile = {
@@ -20,6 +20,7 @@
 
   i18n.inputMethod = {
     type = "fcitx5";
+    enable = true;
     fcitx5.addons = with pkgs; [
       # for flypy chinese input method
       fcitx5-rime

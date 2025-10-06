@@ -3,9 +3,6 @@
 # and in the NixOS manual (accessible by running ‘nixos-help’).
 
 {
-  inputs,
-  lib,
-  config,
   pkgs,
   ...
 }:
@@ -23,7 +20,6 @@
     configurationLimit = 10;
   };
   boot.loader.efi.canTouchEfiVariables = true;
-  boot.supportedFilesystems = [ "ntfs" ];
 
   networking.hostName = "OptiPlex7000"; # Define your hostname.
   # networking.wireless.enable = true;  # Enables wireless support via wpa_supplicant.
@@ -105,7 +101,6 @@
       "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIF0+hnYZo4aaoqLCtG+nW/bBhEPfzrlynRDG7mHmJpAw Termux"
       "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAICAzO9XqJYAdnnuZcvtRLndOqFaFqtSybNKEhKh1sNZC haobosunzju@outlook.com"
     ];
-    packages = with pkgs; [ ];
     shell = pkgs.nushell;
   };
 
