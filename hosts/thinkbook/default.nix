@@ -14,16 +14,20 @@
     ../../modules/windows-fonts.nix
   ];
 
-  boot.loader = {
-    grub = {
-      enable = true;
-      device = "nodev";
-      efiSupport = true;
-      useOSProber = true;
-    };
-    efi = {
-      canTouchEfiVariables = true;
-      efiSysMountPoint = "/boot";
+  boot = {
+    kernelPackages = pkgs.linuxPackages_zen;
+    kernelParams = [ "amd_pstate=active" ];
+    loader = {
+      grub = {
+        enable = true;
+        device = "nodev";
+        efiSupport = true;
+        useOSProber = true;
+      };
+      efi = {
+        canTouchEfiVariables = true;
+        efiSysMountPoint = "/boot";
+      };
     };
   };
 
