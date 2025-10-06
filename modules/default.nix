@@ -161,6 +161,10 @@
 
     nil
     nixd
+    
+    xwayland-satellite
+    
+    wpsoffice-cn
   ];
 
   programs.git = {
