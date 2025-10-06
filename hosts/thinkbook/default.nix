@@ -49,8 +49,14 @@
     httpsProxy = "http://127.0.0.1:7897";
     allProxy = "socks5://127.0.0.1:7897";
   };
-  networking.firewall.allowedTCPPorts = [ 8384 22000 ];
-  networking.firewall.allowedUDPPorts = [ 22000 21027 ];
+  networking.firewall.allowedTCPPorts = [
+    8384
+    22000
+  ];
+  networking.firewall.allowedUDPPorts = [
+    22000
+    21027
+  ];
 
   time.timeZone = "Asia/Shanghai";
 
@@ -151,23 +157,11 @@
     };
   };
 
-  programs.ssh.hostKeyAlgorithms = [
-    "ssh-ed25519"
-    "ssh-rsa"
-  ];
-
-  services.openssh = {
-    enable = true;
-    ports = [ 2222 ];
-    settings = {
-      PermitRootLogin = "no";
-      PasswordAuthentication = false;
-    };
-    openFirewall = true;
-  };
-
   security.polkit.enable = true;
-  services.geoclue2.enable = true;
+  services = {
+    geoclue2.enable = true;
+    upower.enable = true;
+  };
 
   system.stateVersion = "25.05";
 }
