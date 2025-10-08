@@ -4,6 +4,7 @@
 
 {
   pkgs,
+  inputs,
   ...
 }:
 
@@ -12,6 +13,9 @@
     ./hardware-configuration.nix
     ./locale.nix
     ../../modules/windows-fonts.nix
+    ../../modules/filesystems/webdav.nix
+    ../../secrets
+    inputs.agenix.nixosModules.default
   ];
 
   boot = {
@@ -103,7 +107,10 @@
 
   users.users.charname = {
     isNormalUser = true;
-    extraGroups = [ "wheel" ];
+    extraGroups = [
+      "wheel"
+      "davfs2"
+    ];
     shell = pkgs.fish;
   };
 
@@ -139,6 +146,8 @@
     helix
     sddm-astronaut
     clash-verge-rev
+    age
+    ragenix
   ];
 
   environment.variables = {
@@ -165,6 +174,23 @@
   services = {
     geoclue2.enable = true;
     upower.enable = true;
+  };
+
+  filesystems.webdav = {
+    enable = true;
+    # 采用多挂载新接口，使用 agenix (ragenix) 管理密码：
+    # 请在你的 secrets 中定义 age 加密的 `webdav-password`，其内容只包含密码本身。
+    mounts = [
+      {
+        url = "http://10.214.131.20:5005";
+        mountPoint = "/mnt/fnos";
+        username = "charname";
+        passwordAgenixSecret = "webdav-password"; # 与 age.secrets.webdav-password 对应
+        extraMountOptions = [ "rw" ]; # _netdev 等会在 automount=true 时自动补
+        automount = true; # 使用 systemd automount (添加 noauto,x-systemd.automount,_netdev)
+        useLocks = false;
+      }
+    ];
   };
 
   system.stateVersion = "25.05";
