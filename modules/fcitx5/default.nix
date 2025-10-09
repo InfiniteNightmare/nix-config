@@ -9,6 +9,7 @@
       force = true;
     };
     # "fcitx5/conf/classicui.conf".source = ./classicui.conf;
+    "fcitx5/conf/xim.conf".source = ./xim.conf;
   };
 
   xdg.dataFile = {
