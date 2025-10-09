@@ -133,7 +133,7 @@
     pwvucontrol
     helvum
 
-    netease-cloud-music-gtk
+    splayer
 
     # sddm-astronaut
     dracula-icon-theme
