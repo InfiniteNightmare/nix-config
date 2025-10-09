@@ -165,6 +165,8 @@
     xwayland-satellite
     
     wpsoffice-cn
+    
+    wechat
   ];
 
   programs.git = {
