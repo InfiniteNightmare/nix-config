@@ -173,6 +173,7 @@
 
   security.polkit.enable = true;
   services = {
+    avahi.enable = true;
     geoclue2.enable = true;
     upower.enable = true;
   };

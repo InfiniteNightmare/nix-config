@@ -51,8 +51,6 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
-    ags.url = "github:Aylur/ags";
-
     catppuccin.url = "github:catppuccin/nix";
 
     nixos-hardware.url = "github:NixOS/nixos-hardware/master";
@@ -90,11 +88,10 @@
             modules = [
               ./hosts/thinkbook
 
-              nixos-hardware.nixosModules.common-cpu-intel
+              nixos-hardware.nixosModules.common-cpu-amd
               nixos-hardware.nixosModules.common-gpu-amd
-              nixos-hardware.nixosModules.common-gpu-intel
-              nixos-hardware.nixosModules.common-pc
-              nixos-hardware.nixosModules.common-pc-ssd
+              nixos-hardware.nixosModules.common-pc-laptop
+              nixos-hardware.nixosModules.common-pc-laptop-ssd
 
               home-manager.nixosModules.home-manager
               {

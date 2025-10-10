@@ -3,7 +3,7 @@
   programs = {
 
     vscode = {
-      enable = true;
+      enable = false;
       package = (pkgs.vscode.override { commandLineArgs = [ "--enable-wayland-ime" ]; });
       profiles.default = {
         extensions = with pkgs.vscode-extensions; [
