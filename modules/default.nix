@@ -64,7 +64,7 @@
 
     # system call monitoring
     strace # system call monitoring
-    ltrace # library call monitoring
+    # ltrace # library call monitoring
     lsof # list open files
 
     # system tools
@@ -136,7 +136,6 @@
     splayer
 
     # sddm-astronaut
-    dracula-icon-theme
 
     xcur2png
 
@@ -161,11 +160,11 @@
 
     nil
     nixd
-    
+
     xwayland-satellite
-    
+
     wpsoffice-cn
-    
+
     wechat
   ];
 
