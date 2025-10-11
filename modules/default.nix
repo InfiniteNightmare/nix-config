@@ -104,7 +104,9 @@
 
     keepassxc
 
-    kdePackages.polkit-kde-agent-1
+    # polkit-kde-agent
+    mate.mate-polkit
+    gnome-keyring
 
     xdg-utils
 
