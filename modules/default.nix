@@ -5,6 +5,7 @@
     ./fcitx5
     ./shell
     ./niri
+
   ];
 
   home.username = "charname";
@@ -58,7 +59,7 @@
     hugo # static site generator
     glow # markdown previewer in terminal
 
-    zenith # replacement of htop
+    btop # replacement of htop
     iotop # io monitoring
     iftop # network monitoring
 
@@ -125,6 +126,9 @@
     fluent-reader
 
     zed-editor
+    vscode
+    uv
+    nodejs
 
     devbox
 
@@ -168,6 +172,7 @@
     wpsoffice-cn
 
     wechat
+    wemeet
   ];
 
   programs.git = {
