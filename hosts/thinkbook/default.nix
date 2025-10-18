@@ -15,6 +15,7 @@
     ./locale.nix
     ../../modules/windows-fonts.nix
     ../../modules/filesystems/webdav.nix
+    ../../modules/container
     ../../secrets
     inputs.agenix.nixosModules.default
   ];
@@ -76,8 +77,14 @@
     };
   };
 
-  services.displayManager = {
+  services.greetd = {
     enable = true;
+    settings = {
+      default_session = {
+        command = "${pkgs.niri}/bin/niri-session";
+        user = "charname";
+      };
+    };
   };
 
   services.pipewire = {
@@ -102,7 +109,7 @@
     };
   };
 
-  services.blueman.enable = true;
+  # services.blueman.enable = true;
 
   programs.fish.enable = true;
 
@@ -176,6 +183,10 @@
     avahi.enable = true;
     geoclue2.enable = true;
     upower.enable = true;
+    udisks2 = {
+      enable = true;
+      mountOnMedia = true;
+    };
   };
 
   filesystems.webdav = {
@@ -196,8 +207,14 @@
   xdg.portal = {
     enable = true;
     # xdgOpenUsePortal = true;
-    extraPortals = with pkgs; [ xdg-desktop-portal-wlr xdg-desktop-portal-gtk ];
-    config.common.default = [ "wlr" "gtk" ];
+    extraPortals = with pkgs; [
+      xdg-desktop-portal-wlr
+      xdg-desktop-portal-gtk
+    ];
+    config.common.default = [
+      "wlr"
+      "gtk"
+    ];
   };
 
   system.stateVersion = "25.05";
