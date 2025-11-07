@@ -1,11 +1,11 @@
-{ pkgs, ... }:
+{ pkgs, inputs, ... }:
 {
   imports = [
     ./editor
     ./fcitx5
     ./shell
     ./niri
-
+    ./noctalia
   ];
 
   home.username = "charname";
@@ -134,6 +134,8 @@
 
     neovide
 
+    nemo-with-extensions
+
     # bilibili
 
     pwvucontrol
@@ -173,12 +175,16 @@
 
     wechat
     wemeet
+
+    cherry-studio
   ];
 
   programs.git = {
     enable = true;
-    userName = "InfiniteNightmare";
-    userEmail = "742851870@qq.com";
+    settings = {
+      user.name = "InfiniteNightmare";
+      user.email = "742851870@qq.com";
+    };
   };
 
   programs.obs-studio = {
@@ -209,9 +215,38 @@
   services.syncthing = {
     enable = true;
   };
-  catppuccin.enable = true;
 
-  programs.dankMaterialShell.enable = true;
+  xdg = {
+    enable = true;
+  };
+
+  stylix = {
+    # Managed in Home Manager only. Do not configure Stylix in NixOS modules to avoid mismatch.
+    enable = true;
+    base16Scheme = "${inputs.stylix.inputs.tinted-schemes}/base16/catppuccin-mocha.yaml";
+    polarity = "dark";
+
+    fonts = {
+      monospace = {
+        package = pkgs.nerd-fonts.fira-code;
+        name = "FiraCode Nerd Font Mono";
+      };
+      sansSerif = {
+        package = pkgs.noto-fonts;
+        name = "Noto Sans";
+      };
+      serif = {
+        package = pkgs.noto-fonts;
+        name = "Noto Serif";
+      };
+      emoji = {
+        package = pkgs.noto-fonts-color-emoji;
+        name = "Noto Color Emoji";
+      };
+    };
+
+    targets.zen-browser.profileNames = [ "default" ];
+  };
 
   # This value determines the Home Manager release that your
   # configuration is compatible with. This helps avoid breakage
