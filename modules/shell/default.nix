@@ -1,4 +1,4 @@
-{ ... }:
+{ lib, ... }:
 {
   imports = [
     ./fish
@@ -30,10 +30,8 @@
 
     starship.enable = true;
 
-
-
     alacritty = {
-      enable = true;
+      enable = false;
       # 自定义配置
       settings = {
         env.TERM = "xterm-256color";
@@ -42,6 +40,15 @@
         };
         scrolling.multiplier = 5;
         selection.save_to_clipboard = true;
+      };
+    };
+
+    foot = {
+      enable = true;
+      settings = {
+        main = {
+          font = lib.mkForce "FiraCodeNerdFontMono:size=12";
+        };
       };
     };
 

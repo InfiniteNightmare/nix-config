@@ -31,9 +31,15 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
-    dankMaterialShell = {
-      url = "github:AvengeMedia/DankMaterialShell";
+    quickshell = {
+      url = "github:outfoxxed/quickshell";
       inputs.nixpkgs.follows = "nixpkgs";
+    };
+
+    noctalia = {
+      url = "github:noctalia-dev/noctalia-shell";
+      inputs.nixpkgs.follows = "nixpkgs";
+      inputs.quickshell.follows = "quickshell";
     };
 
     niri = {
@@ -51,7 +57,10 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
-    catppuccin.url = "github:catppuccin/nix";
+    stylix = {
+      url = "github:nix-community/stylix";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
 
     nixos-hardware.url = "github:NixOS/nixos-hardware/master";
 
@@ -70,7 +79,8 @@
       home-manager,
       nix-ld,
       agenix,
-      catppuccin,
+
+      stylix,
       nixos-hardware,
       ...
     }@inputs:
@@ -93,9 +103,12 @@
               nixos-hardware.nixosModules.common-pc-laptop
               nixos-hardware.nixosModules.common-pc-laptop-ssd
 
+              stylix.nixosModules.stylix
+              inputs.noctalia.nixosModules.default
+
               home-manager.nixosModules.home-manager
               {
-                home-manager.useGlobalPkgs = true;
+                home-manager.useGlobalPkgs = false;
                 home-manager.useUserPackages = true;
                 home-manager.extraSpecialArgs = {
                   inherit inputs;
@@ -105,17 +118,18 @@
                   imports = [
                     ./modules
                     agenix.homeManagerModules.default
-                    catppuccin.homeModules.catppuccin
+
+                    stylix.homeModules.stylix
+
                     inputs.zen-browser.homeModules.default
-                    inputs.niri.homeModules.niri
-                    inputs.dankMaterialShell.homeModules.dankMaterialShell.default
-                    inputs.dankMaterialShell.homeModules.dankMaterialShell.niri
+                    inputs.noctalia.homeModules.default
                   ];
+                  nixpkgs.config.allowUnfree = true;
                 };
               }
 
-              (args: { nixpkgs.overlays = import ./overlays args; })
             ];
+
           };
       };
     };

@@ -172,10 +172,7 @@
 
   programs = {
     niri.enable = true;
-    nix-ld = {
-      enable = true;
-      package = pkgs.nix-ld-rs;
-    };
+    nix-ld.enable = true;
   };
 
   security.polkit.enable = true;
@@ -183,10 +180,16 @@
     avahi.enable = true;
     geoclue2.enable = true;
     upower.enable = true;
+    noctalia-shell.enable = true;
+    power-profiles-daemon.enable = true;
     udisks2 = {
       enable = true;
       mountOnMedia = true;
     };
+    # udev.extraRules = ''
+    #   SUBSYSTEM=="platform", KERNEL=="VPC2004:*", DRIVER=="ideapad_acpi", ACTION=="add", ATTR{conservation_mode}="1"
+    #   SUBSYSTEM=="platform", KERNEL=="VPC2004:*", DRIVER=="ideapad_acpi", ACTION=="change", ATTR{conservation_mode}="1"
+    # '';
   };
 
   filesystems.webdav = {
@@ -215,6 +218,17 @@
       "wlr"
       "gtk"
     ];
+  };
+
+  specialisation = {
+    stylix-dark.configuration = {
+      system.nixos.tags = [ "stylix-dark" ];
+      environment.sessionVariables.STYLIX_POLARITY = "dark";
+    };
+    stylix-light.configuration = {
+      system.nixos.tags = [ "stylix-light" ];
+      environment.sessionVariables.STYLIX_POLARITY = "light";
+    };
   };
 
   system.stateVersion = "25.05";
