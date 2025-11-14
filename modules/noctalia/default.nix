@@ -6,7 +6,7 @@
   programs.noctalia-shell = {
     enable = true;
     settings = {
-      settingsVersion = 16;
+      settingsVersion = 22;
       setupCompleted = true;
       bar = {
         position = "top";
@@ -17,8 +17,13 @@
         floating = false;
         marginVertical = 0.25;
         marginHorizontal = 0.25;
+        outerCorners = true;
+        exclusive = true;
         widgets = {
           left = [
+            {
+              id = "ControlCenter";
+            }
             {
               id = "SystemMonitor";
             }
@@ -56,9 +61,6 @@
             {
               id = "Clock";
             }
-            {
-              id = "ControlCenter";
-            }
           ];
         };
       };
@@ -74,7 +76,20 @@
         animationDisabled = false;
         compactLockScreen = false;
         lockOnSuspend = true;
+        enableShadows = true;
+        shadowOffsetX = 2;
+        shadowOffsetY = 3;
         language = "zh-CN";
+      };
+      ui = {
+        fontDefault = "Roboto";
+        fontFixed = "DejaVu Sans Mono";
+        fontDefaultScale = 1;
+        fontFixedScale = 1;
+        tooltipsEnabled = true;
+        panelBackgroundOpacity = 1;
+        panelsOverlayLayer = true;
+        settingsPanelAttachToBar = false;
       };
       location = {
         name = "杭州";
@@ -83,7 +98,9 @@
         use12hourFormat = false;
         showWeekNumberInCalendar = false;
         showCalendarEvents = true;
+        showCalendarWeather = true;
         analogClockInCalendar = false;
+        firstDayOfWeek = 01;
       };
       screenRecorder = {
         directory = "";
@@ -98,6 +115,7 @@
       };
       wallpaper = {
         enabled = true;
+        overviewEnabled = false;
         directory = "$HOME/Pictures/Wallpaper";
         enableMultiMonitorDirectories = false;
         recursiveSearch = true;
@@ -111,11 +129,12 @@
         transitionType = "random";
         transitionEdgeSmoothness = 0.05;
         monitors = [ ];
+        panelPosition = "follow_bar";
+        hideWallpaperFilenames = false;
       };
       appLauncher = {
         enableClipboardHistory = true;
         position = "center";
-        backgroundOpacity = 1;
         pinnedExecs = [ ];
         useApp2Unit = false;
         sortByMostUsed = true;
@@ -192,8 +211,40 @@
       network = {
         wifiEnabled = true;
       };
+      sessionMenu = {
+        enableCountdown = true;
+        countdownDuration = 10000;
+        position = "center";
+        showHeader = true;
+        powerOptions = [
+          {
+            action = "lock";
+            enabled = true;
+          }
+          {
+            action = "suspend";
+            enabled = true;
+          }
+          {
+            action = "hibernate";
+            enabled = true;
+          }
+          {
+            action = "reboot";
+            enabled = true;
+          }
+          {
+            action = "logout";
+            enabled = true;
+          }
+          {
+            action = "shutdown";
+            enabled = true;
+          }
+        ];
+      };
       notifications = {
-        doNotDisturb = false;
+        enabled = true;
         monitors = [ ];
         location = "top_right";
         overlayLayer = true;
@@ -202,6 +253,7 @@
         lowUrgencyDuration = 3;
         normalUrgencyDuration = 8;
         criticalUrgencyDuration = 15;
+        enableKeyboardLayoutToast = true;
       };
       osd = {
         enabled = true;
@@ -209,26 +261,21 @@
         monitors = [ ];
         autoHideMs = 2000;
         overlayLayer = true;
+        backgroundOpacity = 1;
       };
       audio = {
         volumeStep = 5;
         volumeOverdrive = false;
         cavaFrameRate = 60;
         visualizerType = "linear";
+        visualizerQuality = "high";
         mprisBlacklist = [ ];
         preferredPlayer = "";
-      };
-      ui = {
-        fontDefault = "Roboto";
-        fontFixed = "DejaVu Sans Mono";
-        fontDefaultScale = 1;
-        fontFixedScale = 1;
-        tooltipsEnabled = true;
-        panelsOverlayLayer = true;
       };
       brightness = {
         brightnessStep = 5;
         enforceMinimum = true;
+        enableDdcSupport = false;
       };
       colorSchemes = {
         useWallpaperColors = false;
@@ -271,6 +318,8 @@
       };
       hooks = {
         enabled = false;
+        wallpaperChange = "";
+        darkModeChange = "";
       };
       battery = {
         chargingMode = 0;

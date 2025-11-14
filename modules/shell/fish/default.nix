@@ -26,8 +26,8 @@
 
       # 代理控制函数与智能启用
       function __proxy_on --description 'Enable local proxy'
-        set -gx http_proxy  http://127.0.0.1:7897
-        set -gx https_proxy http://127.0.0.1:7897
+        set -gx http_proxy  http://10.214.131.20:7890
+        set -gx https_proxy http://10.214.131.20:7890
         set -gx no_proxy localhost,127.0.0.1,::1
         set -gx NO_PROXY $no_proxy
         echo "[proxy] enabled -> $http_proxy"
@@ -66,7 +66,7 @@
 
       # 如果本地端口开放则自动启用
       if command -q nc
-        if nc -z 127.0.0.1 7897 >/dev/null 2>&1
+        if nc -z 10.214.131.20 7890 >/dev/null 2>&1
           if not set -q http_proxy
             __proxy_on
           end

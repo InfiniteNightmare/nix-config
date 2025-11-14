@@ -39,7 +39,7 @@
 
   windowsFonts = {
     enable = true;
-    uuid = "868C96948C967E7D";
+    uuid = "102ABC442ABC289C";
     mountPoint = "/var/lib/windows-ro";
     fsType = "ntfs3";
     readonly = true;
@@ -55,9 +55,9 @@
 
   networking.networkmanager.enable = true;
   networking.proxy = {
-    httpProxy = "http://127.0.0.1:7897";
-    httpsProxy = "http://127.0.0.1:7897";
-    allProxy = "socks5://127.0.0.1:7897";
+    httpProxy = "http://10.214.131.20:7890";
+    httpsProxy = "http://10.214.131.20:7890";
+    allProxy = "socks5://10.214.131.20:7890";
   };
   networking.firewall.allowedTCPPorts = [
     8384
@@ -221,14 +221,6 @@
   };
 
   specialisation = {
-    stylix-dark.configuration = {
-      system.nixos.tags = [ "stylix-dark" ];
-      environment.sessionVariables.STYLIX_POLARITY = "dark";
-    };
-    stylix-light.configuration = {
-      system.nixos.tags = [ "stylix-light" ];
-      environment.sessionVariables.STYLIX_POLARITY = "light";
-    };
   };
 
   system.stateVersion = "25.05";
