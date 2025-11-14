@@ -57,7 +57,7 @@
   # Paths to local age private keys used for decryption on this machine.
   # If using different keys per host, you can override / extend this in per-host secrets files.
   age.identityPaths = [
-    "/etc/age/agenix-key"
+    "/home/charname/.ssh/id_ed25519"
   ];
 
   # Shared WebDAV password secret.
