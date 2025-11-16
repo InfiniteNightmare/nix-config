@@ -29,6 +29,7 @@
         device = "nodev";
         efiSupport = true;
         useOSProber = true;
+        copyKernels = false;
       };
       efi = {
         canTouchEfiVariables = true;
