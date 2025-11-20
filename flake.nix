@@ -31,15 +31,9 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
-    quickshell = {
-      url = "github:outfoxxed/quickshell";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
-
     noctalia = {
       url = "github:noctalia-dev/noctalia-shell";
       inputs.nixpkgs.follows = "nixpkgs";
-      inputs.quickshell.follows = "quickshell";
     };
 
     niri = {
@@ -105,6 +99,11 @@
 
               stylix.nixosModules.stylix
               inputs.noctalia.nixosModules.default
+              inputs.niri.nixosModules.niri
+
+              {
+                nixpkgs.overlays = [ inputs.niri.overlays.niri ];
+              }
 
               home-manager.nixosModules.home-manager
               {
