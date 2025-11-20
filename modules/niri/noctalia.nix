@@ -6,7 +6,7 @@
   programs.noctalia-shell = {
     enable = true;
     settings = {
-      settingsVersion = 22;
+      settingsVersion = 23;
       setupCompleted = true;
       bar = {
         position = "top";
@@ -14,6 +14,7 @@
         monitors = [ ];
         density = "default";
         showCapsule = true;
+        capsuleOpacity = 1;
         floating = false;
         marginVertical = 0.25;
         marginHorizontal = 0.25;
@@ -23,6 +24,7 @@
           left = [
             {
               id = "ControlCenter";
+              useDistroLogo = true;
             }
             {
               id = "SystemMonitor";
@@ -66,7 +68,7 @@
       };
       general = {
         avatarImage = "";
-        dimDesktop = true;
+        dimmerOpacity = 0.6;
         showScreenCorners = false;
         forceBlackScreenCorners = false;
         scaleRatio = 1;
@@ -77,9 +79,11 @@
         compactLockScreen = false;
         lockOnSuspend = true;
         enableShadows = true;
+        shadowDirection = "bottom_right";
         shadowOffsetX = 2;
         shadowOffsetY = 3;
         language = "zh-CN";
+        allowPanelsOnScreenWithoutBar = true;
       };
       ui = {
         fontDefault = "Roboto";
@@ -88,19 +92,20 @@
         fontFixedScale = 1;
         tooltipsEnabled = true;
         panelBackgroundOpacity = 1;
-        panelsOverlayLayer = true;
+        panelsAttachedToBar = true;
         settingsPanelAttachToBar = false;
       };
       location = {
         name = "杭州";
         weatherEnabled = true;
+        weatherShowEffects = true;
         useFahrenheit = false;
         use12hourFormat = false;
         showWeekNumberInCalendar = false;
         showCalendarEvents = true;
         showCalendarWeather = true;
         analogClockInCalendar = false;
-        firstDayOfWeek = 01;
+        firstDayOfWeek = -1;
       };
       screenRecorder = {
         directory = "";
@@ -116,14 +121,14 @@
       wallpaper = {
         enabled = true;
         overviewEnabled = false;
-        directory = "$HOME/Pictures/Wallpaper";
+        directory = "/home/charname/Pictures/Wallpaper";
         enableMultiMonitorDirectories = false;
         recursiveSearch = true;
         setWallpaperOnAllMonitors = true;
         defaultWallpaper = "";
         fillMode = "crop";
         fillColor = "#000000";
-        randomEnabled = false;
+        randomEnabled = true;
         randomIntervalSec = 300;
         transitionDuration = 1500;
         transitionType = "random";
@@ -131,6 +136,15 @@
         monitors = [ ];
         panelPosition = "follow_bar";
         hideWallpaperFilenames = false;
+        useWallhaven = false;
+        wallhavenQuery = "";
+        wallhavenSorting = "relevance";
+        wallhavenOrder = "desc";
+        wallhavenCategories = "111";
+        wallhavenPurity = "100";
+        wallhavenResolutionMode = "atleast";
+        wallhavenResolutionWidth = "";
+        wallhavenResolutionHeight = "";
       };
       appLauncher = {
         enableClipboardHistory = true;
@@ -196,6 +210,19 @@
             id = "media-sysmon-card";
           }
         ];
+      };
+      systemMonitor = {
+        cpuWarningThreshold = 80;
+        cpuCriticalThreshold = 90;
+        tempWarningThreshold = 80;
+        tempCriticalThreshold = 90;
+        memWarningThreshold = 80;
+        memCriticalThreshold = 90;
+        diskWarningThreshold = 80;
+        diskCriticalThreshold = 90;
+        useCustomColors = false;
+        warningColor = "";
+        criticalColor = "";
       };
       dock = {
         enabled = true;
@@ -279,9 +306,9 @@
       };
       colorSchemes = {
         useWallpaperColors = false;
-        predefinedScheme = "Catppuccin";
+        predefinedScheme = "TokyoNight";
         darkMode = true;
-        schedulingMode = "off";
+        schedulingMode = "system";
         manualSunrise = "06:30";
         manualSunset = "18:30";
         matugenSchemeType = "scheme-fruit-salad";
@@ -291,20 +318,18 @@
         gtk = false;
         qt = false;
         kcolorscheme = false;
+        alacritty = false;
         kitty = false;
         ghostty = false;
         foot = false;
+        wezterm = false;
         fuzzel = false;
         discord = false;
-        discord_vesktop = false;
-        discord_webcord = false;
-        discord_armcord = false;
-        discord_equibop = false;
-        discord_lightcord = false;
-        discord_dorion = false;
         pywalfox = false;
         vicinae = false;
         walker = false;
+        code = false;
+        spicetify = false;
         enableUserTemplates = false;
       };
       nightLight = {
@@ -320,9 +345,6 @@
         enabled = false;
         wallpaperChange = "";
         darkModeChange = "";
-      };
-      battery = {
-        chargingMode = 0;
       };
     };
   };

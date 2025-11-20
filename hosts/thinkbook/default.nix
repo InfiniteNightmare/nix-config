@@ -16,6 +16,7 @@
     ../../modules/windows-fonts.nix
     ../../modules/filesystems/webdav.nix
     ../../modules/container
+    ../../modules/btrfs-snapshots
     ../../secrets
     inputs.agenix.nixosModules.default
   ];
@@ -82,7 +83,7 @@
     enable = true;
     settings = {
       default_session = {
-        command = "${pkgs.niri}/bin/niri-session";
+        command = "${pkgs.niri-unstable}/bin/niri-session";
         user = "charname";
       };
     };
@@ -133,10 +134,12 @@
     auto-optimise-store = true;
     builders-use-substitutes = true;
     substituters = [
+      "https://niri.cachix.org"
       "https://mirrors.ustc.edu.cn/nix-channels/store"
       "https://cache.nixos.org"
     ];
     trusted-public-keys = [
+      "niri.cachix.org-1:Wv0OmO7PsuocRKzfDoJ3mulSl7Z6oezYhGhR+3W2964="
       "cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY="
     ];
   };
@@ -172,7 +175,10 @@
   environment.sessionVariables.NIXOS_OZONE_WL = "1";
 
   programs = {
-    niri.enable = true;
+    niri = {
+      enable = true;
+      package = pkgs.niri-unstable;
+    };
     nix-ld.enable = true;
   };
 
@@ -219,6 +225,78 @@
       "wlr"
       "gtk"
     ];
+  };
+
+  # ============================================
+  # Btrfs 自动快照配置
+  # ============================================
+  services.btrfsSnapshots = {
+    enable = true;
+
+    # 在 NixOS rebuild 时创建快照（配置切换前）
+    snapshotOnRebuild = true;
+
+    # 在系统启动时创建快照
+    snapshotOnBoot = true;
+
+    # 定时快照配置
+    timeline = {
+      enable = true;
+      limits = {
+        hourly = 24; # 保留 24 小时的快照
+        daily = 7; # 保留 7 天的每日快照
+        weekly = 4; # 保留 4 周的每周快照
+        monthly = 6; # 保留 6 个月的每月快照
+        yearly = 2; # 保留 2 年的每年快照
+      };
+    };
+
+    # 配置要快照的 subvolume
+    configs = {
+      # 根分区快照 - 保护系统文件和配置
+      root = {
+        subvolume = "/";
+      };
+
+      # Home 分区快照 - 保护用户数据（最重要）
+      home = {
+        subvolume = "/home";
+      };
+
+      # Data 分区快照 - 保护额外数据
+      data = {
+        subvolume = "/data";
+      };
+
+      # 注意：/nix 不需要快照，因为可以通过 NixOS 配置重建
+      # /boot 也不需要，因为它不是 btrfs 文件系统
+    };
+  };
+
+  # ============================================
+  # NAS 备份配置（btrbk 增量同步到 btrfs NAS）
+  # ============================================
+  services.btrfsNasBackup = {
+    enable = true;
+
+    # NAS 配置
+    nasHost = "10.214.131.20";
+    nasPort = 2222;
+    nasUser = "charname";
+    sshKeyFile = "/home/charname/.ssh/id_ed25519";
+    backupBasePath = "/vol2/1001/snapshots";
+
+    # 备份计划
+    schedule = "daily"; # 每天备份
+
+    # 要备份的 volume（使用默认配置：home, root, data）
+    # volumes 已经有默认值，无需重复配置
+
+    # 保留策略
+    retention = {
+      snapshot = "14d 4w"; # 本地快照：14天 + 4周
+      target = "30d 12w 12m 2y"; # NAS 备份：30天 + 12周 + 12月 + 2年
+    };
   };
 
   specialisation = {

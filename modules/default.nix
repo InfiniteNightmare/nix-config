@@ -16,7 +16,6 @@ in
     ./fcitx5
     ./shell
     ./niri
-    ./noctalia
   ];
 
   home.username = "charname";
@@ -236,8 +235,32 @@ in
   stylix = {
     # Managed in Home Manager only. Do not configure Stylix in NixOS modules to avoid mismatch.
     enable = true;
-    base16Scheme = "${inputs.stylix.inputs.tinted-schemes}/base16/catppuccin-mocha.yaml";
+    # High contrast theme options:
+    # - "catppuccin-mocha.yaml" - medium contrast
+    # - "tokyo-night-dark.yaml" - Higher contrast dark theme
+    # - "gruvbox-dark-hard.yaml" - Very high contrast
+    # - "nord.yaml" - Good contrast with blue tones
+    # - "solarized-dark.yaml" - Classic high contrast
+    base16Scheme = "${inputs.stylix.inputs.tinted-schemes}/base16/tokyo-night-dark.yaml";
     polarity = "dark";
+
+    # Reduce opacity for better contrast
+    opacity = {
+      terminal = 0.95;
+      applications = 1.0;
+      desktop = 1.0;
+      popups = 0.95;
+    };
+
+    # Override colors for better contrast
+    # override = {
+    #   # Make background darker (pure black for maximum contrast)
+    #   base00 = "000000"; # Pure black background
+    #   # Make foreground much brighter (almost white)
+    #   base05 = "f0f0f0"; # Very bright text
+    #   # Brighter comments/disabled text
+    #   base03 = "808080"; # Medium gray instead of dark gray
+    # };
 
     fonts = {
       monospace = {
