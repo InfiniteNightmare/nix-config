@@ -171,6 +171,12 @@
           # Focus ring colors managed by Stylix
         };
       }
+      # {
+      #   matches = [
+      #     { is-active = true; }
+      #   ];
+      #   opacity = 1.0;
+      # }
 
       # WezTerm
       {

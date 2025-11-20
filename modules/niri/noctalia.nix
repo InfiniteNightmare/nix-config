@@ -124,7 +124,7 @@
         directory = "/home/charname/Pictures/Wallpaper";
         enableMultiMonitorDirectories = false;
         recursiveSearch = true;
-        setWallpaperOnAllMonitors = true;
+        setWallpaperOnAllMonitors = false;
         defaultWallpaper = "";
         fillMode = "crop";
         fillColor = "#000000";
