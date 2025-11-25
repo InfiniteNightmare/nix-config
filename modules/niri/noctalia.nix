@@ -136,15 +136,15 @@
         monitors = [ ];
         panelPosition = "follow_bar";
         hideWallpaperFilenames = false;
-        useWallhaven = false;
-        wallhavenQuery = "";
+        useWallhaven = true;
+        wallhavenQuery = "Tenshi";
         wallhavenSorting = "relevance";
         wallhavenOrder = "desc";
         wallhavenCategories = "111";
         wallhavenPurity = "100";
         wallhavenResolutionMode = "atleast";
-        wallhavenResolutionWidth = "";
-        wallhavenResolutionHeight = "";
+        wallhavenResolutionWidth = "1980";
+        wallhavenResolutionHeight = "1080";
       };
       appLauncher = {
         enableClipboardHistory = true;
@@ -306,7 +306,7 @@
       };
       colorSchemes = {
         useWallpaperColors = false;
-        predefinedScheme = "TokyoNight";
+        predefinedScheme = "Tokyo Night";
         darkMode = true;
         schedulingMode = "system";
         manualSunrise = "06:30";

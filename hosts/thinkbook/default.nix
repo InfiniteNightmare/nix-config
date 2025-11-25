@@ -23,7 +23,10 @@
 
   boot = {
     kernelPackages = pkgs.linuxPackages_zen;
-    kernelParams = [ "amd_pstate=active" ];
+    kernelParams = [
+      "amd_pstate=active"
+      "mem_sleep_default=deep"
+    ];
     loader = {
       grub = {
         enable = true;
@@ -31,6 +34,7 @@
         efiSupport = true;
         useOSProber = true;
         copyKernels = false;
+        configurationLimit = 10;
       };
       efi = {
         canTouchEfiVariables = true;
@@ -160,6 +164,7 @@
     clash-verge-rev
     age
     ragenix
+    system-config-printer
   ];
 
   environment.variables = {
@@ -184,20 +189,76 @@
 
   security.polkit.enable = true;
   services = {
-    avahi.enable = true;
     geoclue2.enable = true;
     upower.enable = true;
     noctalia-shell.enable = true;
-    power-profiles-daemon.enable = true;
+    # power-profiles-daemon.enable = true;
     udisks2 = {
       enable = true;
       mountOnMedia = true;
     };
-    # udev.extraRules = ''
-    #   SUBSYSTEM=="platform", KERNEL=="VPC2004:*", DRIVER=="ideapad_acpi", ACTION=="add", ATTR{conservation_mode}="1"
-    #   SUBSYSTEM=="platform", KERNEL=="VPC2004:*", DRIVER=="ideapad_acpi", ACTION=="change", ATTR{conservation_mode}="1"
-    # '';
+    printing = {
+      enable = true;
+      drivers = with pkgs; [
+        gutenprint
+        hplip
+        hplipWithPlugin
+      ];
+    };
+    avahi = {
+      enable = true;
+      nssmdns4 = true;
+      openFirewall = true;
+    };
+    udev.extraRules = ''
+      SUBSYSTEM=="platform", KERNEL=="VPC2004:*", DRIVER=="ideapad_acpi", ACTION=="add", ATTR{conservation_mode}="1"
+      SUBSYSTEM=="platform", KERNEL=="VPC2004:*", DRIVER=="ideapad_acpi", ACTION=="change", ATTR{conservation_mode}="1"
+    '';
+
+    # TLP 电源管理配置
+    tlp = {
+      enable = true;
+      settings = {
+        # CPU 性能调度
+        CPU_SCALING_GOVERNOR_ON_AC = "performance";
+        CPU_SCALING_GOVERNOR_ON_BAT = "powersave";
+
+        # AMD CPU 能耗模式
+        CPU_ENERGY_PERF_POLICY_ON_AC = "performance";
+        CPU_ENERGY_PERF_POLICY_ON_BAT = "power";
+
+        # CPU 频率范围
+        CPU_MIN_PERF_ON_AC = 0;
+        CPU_MAX_PERF_ON_AC = 100;
+        CPU_MIN_PERF_ON_BAT = 0;
+        CPU_MAX_PERF_ON_BAT = 30;
+
+        # 启用 CPU Boost
+        CPU_BOOST_ON_AC = 1;
+        CPU_BOOST_ON_BAT = 0;
+
+        # 平台配置文件
+        PLATFORM_PROFILE_ON_AC = "performance";
+        PLATFORM_PROFILE_ON_BAT = "low-power";
+
+        # 运行时电源管理
+        RUNTIME_PM_ON_AC = "on";
+        RUNTIME_PM_ON_BAT = "auto";
+
+        # USB 自动挂起
+        USB_AUTOSUSPEND = 1;
+
+        # 无线设备电源管理
+        WIFI_PWR_ON_AC = "off";
+        WIFI_PWR_ON_BAT = "on";
+
+        # 电池保养：已启用 conservation_mode，不使用 TLP 充电阈值以避免冲突
+        # START_CHARGE_THRESH_BAT0 = 40;
+        # STOP_CHARGE_THRESH_BAT0 = 80;
+      };
+    };
   };
+  powerManagement.enable = true;
 
   filesystems.webdav = {
     enable = true;
