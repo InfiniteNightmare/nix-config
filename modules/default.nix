@@ -29,6 +29,7 @@ in
     xz
     unzip
     p7zip
+    pigz
 
     # utils
     ripgrep # recursively searches directories for a regex pattern
@@ -235,6 +236,9 @@ in
   stylix = {
     # Managed in Home Manager only. Do not configure Stylix in NixOS modules to avoid mismatch.
     enable = true;
+
+    # Disable version mismatch warnings for unstable branch
+    enableReleaseChecks = false;
     # High contrast theme options:
     # - "catppuccin-mocha.yaml" - medium contrast
     # - "tokyo-night-dark.yaml" - Higher contrast dark theme
@@ -292,7 +296,10 @@ in
   # You can update Home Manager without changing this value. See
   # the Home Manager release notes for a list of state version
   # changes in each release.
-  home.stateVersion = "23.11";
+  home.stateVersion = "25.05";
+
+  # Disable nixpkgs version mismatch warning for unstable branch
+  home.enableNixpkgsReleaseCheck = false;
 
   # Let Home Manager install and manage itself.
   programs.home-manager.enable = true;

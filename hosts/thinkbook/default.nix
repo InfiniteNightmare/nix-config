@@ -61,9 +61,9 @@
 
   networking.networkmanager.enable = true;
   networking.proxy = {
-    httpProxy = "http://10.214.131.20:7890";
-    httpsProxy = "http://10.214.131.20:7890";
-    allProxy = "socks5://10.214.131.20:7890";
+    httpProxy = "http://127.0.0.1:7890";
+    httpsProxy = "http://127.0.0.1:7890";
+    allProxy = "socks5://127.0.0.1:7890";
   };
   networking.firewall.allowedTCPPorts = [
     8384
