@@ -41,11 +41,6 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
-    # more-waita = {
-    # url = "github:somepaulo/MoreWaita";
-    # flake = false;
-    # };
-
     agenix = {
       url = "github:yaxitech/ragenix";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -63,6 +58,11 @@
       # IMPORTANT: we're using "libgbm" and is only available in unstable so ensure
       # to have it up-to-date or simply don't specify the nixpkgs input
       inputs.nixpkgs.follows = "nixpkgs";
+    };
+
+    oh-my-opencode = {
+      url = "github:code-yeongyu/oh-my-opencode";
+      flake = false;
     };
   };
 

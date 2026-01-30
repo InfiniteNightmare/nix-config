@@ -1,13 +1,15 @@
 { pkgs, inputs, ... }:
 let
-  wechatDirect = pkgs.callPackage (pkgs.path + "/pkgs/by-name/we/wechat/linux.nix") {
-    pname = "wechat";
-    version = "4.1.0.13";
-    src = pkgs.fetchurl {
-      url = "https://dldir1v6.qq.com/weixin/Universal/Linux/WeChatLinux_x86_64.AppImage";
-      hash = "sha256-+r5Ebu40GVGG2m2lmCFQ/JkiDsN/u7XEtnLrB98602w=";
-    };
-    meta = pkgs.wechat.meta;
+  # Wrap Zotero to force X11 backend via XWayland for niri compatibility
+  zoteroX11 = pkgs.symlinkJoin {
+    name = "zotero-x11";
+    paths = [ pkgs.zotero ];
+    buildInputs = [ pkgs.makeWrapper ];
+    postBuild = ''
+      wrapProgram $out/bin/zotero \
+        --set GDK_BACKEND x11 \
+        --set MOZ_ENABLE_WAYLAND 0
+    '';
   };
 in
 {
@@ -24,12 +26,15 @@ in
   home.packages = with pkgs; [
     fastfetch
 
+    gnumake
+
     # archives
     zip
     xz
     unzip
     p7zip
     pigz
+    unrar
 
     # utils
     ripgrep # recursively searches directories for a regex pattern
@@ -101,7 +106,7 @@ in
     # browser
     # (microsoft-edge.override { commandLineArgs = [ "--enable-wayland-ime" ]; })
 
-    zotero
+    zoteroX11
 
     obsidian
 
@@ -129,8 +134,8 @@ in
     gimp
 
     grim
-
     slurp
+    hyprpicker
 
     snipaste
 
@@ -139,7 +144,8 @@ in
     zed-editor
     vscode
     uv
-    nodejs
+    gemini-cli
+    opencode
 
     devbox
 
@@ -152,6 +158,7 @@ in
     pwvucontrol
     helvum
 
+    mpvpaper
     splayer
 
     # sddm-astronaut
@@ -184,10 +191,11 @@ in
 
     wpsoffice-cn
 
-    wechatDirect
+    # wechatDirect
+    wechat
     wemeet
 
-    kazumi
+    animeko
 
     cherry-studio
   ];
@@ -203,7 +211,6 @@ in
   programs.obs-studio = {
     enable = true;
     plugins = with pkgs.obs-studio-plugins; [
-      wlrobs
       obs-pipewire-audio-capture
     ];
   };
@@ -227,6 +234,21 @@ in
 
   services.syncthing = {
     enable = true;
+  };
+
+  systemd.user.services.vibe-kanban = {
+    Unit = {
+      Description = "Vibe Kanban MCP Server";
+      After = [ "network.target" ];
+    };
+    Service = {
+      ExecStart = "${pkgs.nodejs}/bin/npx -y vibe-kanban";
+      Restart = "always";
+      Environment = "PATH=${pkgs.nodejs}/bin:${pkgs.bash}/bin:$PATH PORT=4000";
+    };
+    Install = {
+      WantedBy = [ "default.target" ];
+    };
   };
 
   xdg = {
@@ -303,4 +325,6 @@ in
 
   # Let Home Manager install and manage itself.
   programs.home-manager.enable = true;
+
+  home.file.".oh-my-opencode".source = inputs.oh-my-opencode;
 }

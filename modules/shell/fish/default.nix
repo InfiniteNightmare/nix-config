@@ -73,15 +73,6 @@
         end
       end
 
-      # 定义 abbreviations (输入时自动展开)
-      abbr -a gs 'git status'
-      abbr -a gl 'git pull'
-      abbr -a gp 'git push'
-      abbr -a gco 'git checkout'
-      abbr -a ll 'eza -al --git'
-      abbr -a la 'eza -a'
-      abbr -a v 'hx'
-
       # Starship 由 Home Manager 自动注入，无需手动 init
     '';
   };

@@ -140,6 +140,7 @@
       { sh = "foot --server"; }
       { sh = "keepassxc --minimized"; }
       { argv = [ "cherry-studio" ]; }
+      { sh = ''mpvpaper -p -n 600 -o "--shuffle --no-audio --hwdec=auto-safe --vf=fps=30 --panscan=1.0" eDP-1 /data/Videos''; }
     ];
 
     # Config notification
@@ -245,6 +246,20 @@
       {
         matches = [
           { namespace = ''^noctalia-wallpaper.*''; }
+        ];
+        place-within-backdrop = true;
+      }
+      
+      {
+        matches = [
+          { namespace = "^mpvpaper$"; }
+        ];
+        place-within-backdrop = true;
+      }
+      
+      {
+        matches = [
+          { namespace = ''^linux-wallpaperengine.*''; }
         ];
         place-within-backdrop = true;
       }
@@ -478,6 +493,10 @@
 
       # Screenshots
       "Print".action.screenshot = [ ];
+      "Mod+Alt+P" = {
+        action.spawn = [ "hyprpicker" "-a" ];
+        hotkey-overlay.title = "Color Picker";
+      };
 
       # System
       "Mod+Escape" = {

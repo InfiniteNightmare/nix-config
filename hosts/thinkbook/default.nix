@@ -34,7 +34,7 @@
         efiSupport = true;
         useOSProber = true;
         copyKernels = false;
-        configurationLimit = 10;
+        configurationLimit = 3;
       };
       efi = {
         canTouchEfiVariables = true;
@@ -66,8 +66,10 @@
     allProxy = "socks5://127.0.0.1:7890";
   };
   networking.firewall.allowedTCPPorts = [
+    3025
     8384
     22000
+    53317
   ];
   networking.firewall.allowedUDPPorts = [
     22000
@@ -151,7 +153,7 @@
   nix.gc = {
     automatic = true;
     dates = "weekly";
-    options = ''--delete-older-than 1w'';
+    options = "--delete-older-than 1w";
   };
 
   environment.systemPackages = with pkgs; [
@@ -185,6 +187,16 @@
       package = pkgs.niri-unstable;
     };
     nix-ld.enable = true;
+    steam = {
+      enable = true;
+      remotePlay.openFirewall = true;
+      dedicatedServer.openFirewall = true;
+    };
+  };
+
+  hardware.graphics = {
+    enable = true;
+    enable32Bit = true;
   };
 
   security.polkit.enable = true;
