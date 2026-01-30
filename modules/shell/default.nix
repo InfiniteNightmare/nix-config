@@ -56,6 +56,12 @@
 
     zellij.enable = true;
 
+    tmux = {
+      enable = true;
+      mouse = true;
+      baseIndex = 1;
+    };
+
     zoxide.enable = true;
 
     yazi = {
