@@ -6,18 +6,14 @@
   programs.noctalia-shell = {
     enable = true;
     settings = {
-      settingsVersion = 23;
-      setupCompleted = true;
+      settingsVersion = 0;
       bar = {
         position = "top";
-        backgroundOpacity = 1;
         monitors = [ ];
         density = "default";
         showCapsule = true;
-        capsuleOpacity = 1;
         floating = false;
-        marginVertical = 0.25;
-        marginHorizontal = 0.25;
+
         outerCorners = true;
         exclusive = true;
         widgets = {
@@ -68,16 +64,15 @@
       };
       general = {
         avatarImage = "";
-        dimmerOpacity = 0.6;
+
         showScreenCorners = false;
         forceBlackScreenCorners = false;
-        scaleRatio = 1;
-        radiusRatio = 1;
-        screenRadiusRatio = 1;
-        animationSpeed = 1;
+
         animationDisabled = false;
         compactLockScreen = false;
         lockOnSuspend = true;
+        showSessionButtonsOnLockScreen = true;
+        showHibernateOnLockScreen = false;
         enableShadows = true;
         shadowDirection = "bottom_right";
         shadowOffsetX = 2;
@@ -86,14 +81,9 @@
         allowPanelsOnScreenWithoutBar = true;
       };
       ui = {
-        fontDefault = "Roboto";
-        fontFixed = "DejaVu Sans Mono";
-        fontDefaultScale = 1;
-        fontFixedScale = 1;
         tooltipsEnabled = true;
-        panelBackgroundOpacity = 1;
         panelsAttachedToBar = true;
-        settingsPanelAttachToBar = false;
+        settingsPanelMode = "attached";
       };
       location = {
         name = "杭州";
@@ -107,6 +97,26 @@
         analogClockInCalendar = false;
         firstDayOfWeek = -1;
       };
+      calendar = {
+        cards = [
+          {
+            enabled = true;
+            id = "calendar-header-card";
+          }
+          {
+            enabled = true;
+            id = "calendar-month-card";
+          }
+          {
+            enabled = true;
+            id = "timer-card";
+          }
+          {
+            enabled = true;
+            id = "weather-card";
+          }
+        ];
+      };
       screenRecorder = {
         directory = "";
         frameRate = 60;
@@ -119,21 +129,20 @@
         videoSource = "portal";
       };
       wallpaper = {
-        enabled = true;
+        enabled = false;
         overviewEnabled = false;
         directory = "/home/charname/Pictures/Wallpaper";
+        monitorDirectories = [ ];
         enableMultiMonitorDirectories = false;
         recursiveSearch = true;
         setWallpaperOnAllMonitors = false;
-        defaultWallpaper = "";
         fillMode = "crop";
         fillColor = "#000000";
         randomEnabled = true;
         randomIntervalSec = 300;
         transitionDuration = 1500;
         transitionType = "random";
-        transitionEdgeSmoothness = 0.05;
-        monitors = [ ];
+
         panelPosition = "follow_bar";
         hideWallpaperFilenames = false;
         useWallhaven = true;
@@ -148,6 +157,7 @@
       };
       appLauncher = {
         enableClipboardHistory = true;
+        enableClipPreview = true;
         position = "center";
         pinnedExecs = [ ];
         useApp2Unit = false;
@@ -155,6 +165,8 @@
         terminalCommand = "footclient -e";
         customLaunchPrefixEnabled = false;
         customLaunchPrefix = "";
+        viewMode = "list";
+        showCategories = true;
       };
       controlCenter = {
         position = "close_to_bar_button";
@@ -220,6 +232,11 @@
         memCriticalThreshold = 90;
         diskWarningThreshold = 80;
         diskCriticalThreshold = 90;
+        cpuPollingInterval = 3000;
+        tempPollingInterval = 3000;
+        memPollingInterval = 3000;
+        diskPollingInterval = 3000;
+        networkPollingInterval = 3000;
         useCustomColors = false;
         warningColor = "";
         criticalColor = "";
@@ -227,20 +244,21 @@
       dock = {
         enabled = true;
         displayMode = "auto_hide";
-        backgroundOpacity = 1;
-        floatingRatio = 1;
-        size = 1;
+
         onlySameOutput = true;
         monitors = [ ];
         pinnedApps = [ ];
         colorizeIcons = false;
+        pinnedStatic = false;
+        inactiveIndicators = false;
+
       };
       network = {
         wifiEnabled = true;
       };
       sessionMenu = {
         enableCountdown = true;
-        countdownDuration = 3000;
+        countdownDuration = 10000;
         position = "center";
         showHeader = true;
         powerOptions = [
@@ -275,29 +293,34 @@
         monitors = [ ];
         location = "top_right";
         overlayLayer = true;
-        backgroundOpacity = 1;
         respectExpireTimeout = false;
         lowUrgencyDuration = 3;
         normalUrgencyDuration = 8;
         criticalUrgencyDuration = 15;
         enableKeyboardLayoutToast = true;
+
       };
       osd = {
         enabled = true;
         location = "top_right";
-        monitors = [ ];
         autoHideMs = 2000;
         overlayLayer = true;
-        backgroundOpacity = 1;
+        enabledTypes = [
+          0
+          1
+          2
+        ];
+        monitors = [ ];
       };
       audio = {
         volumeStep = 5;
         volumeOverdrive = false;
-        cavaFrameRate = 60;
+        cavaFrameRate = 30;
         visualizerType = "linear";
         visualizerQuality = "high";
         mprisBlacklist = [ ];
         preferredPlayer = "";
+        externalMixer = "pwvucontrol || pavucontrol";
       };
       brightness = {
         brightnessStep = 5;
@@ -308,7 +331,7 @@
         useWallpaperColors = false;
         predefinedScheme = "Tokyo Night";
         darkMode = true;
-        schedulingMode = "system";
+        schedulingMode = "off";
         manualSunrise = "06:30";
         manualSunset = "18:30";
         matugenSchemeType = "scheme-fruit-salad";
@@ -330,6 +353,11 @@
         walker = false;
         code = false;
         spicetify = false;
+        telegram = false;
+        cava = false;
+        yazi = false;
+        emacs = false;
+        niri = false;
         enableUserTemplates = false;
       };
       nightLight = {
