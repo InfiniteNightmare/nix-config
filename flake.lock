@@ -460,11 +460,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1769792117,
-        "narHash": "sha256-rM1psjMhmbVTNydsAzwIIuXZR/e8FhkQe6a50Jw1e2A=",
+        "lastModified": 1769795340,
+        "narHash": "sha256-SkqyoM3mvaV+LUy13vQ6mlJTj+esDxQMcTkJKaVx9ME=",
         "owner": "noctalia-dev",
         "repo": "noctalia-shell",
-        "rev": "a869b50b198e9bd39df309e3601586291b5cdf1d",
+        "rev": "3acd062f4b70871c3547c1ed1b1cd31a597193aa",
         "type": "github"
       },
       "original": {
@@ -498,22 +498,6 @@
         "type": "github"
       }
     },
-    "oh-my-opencode": {
-      "flake": false,
-      "locked": {
-        "lastModified": 1769788311,
-        "narHash": "sha256-8jqK66iszZt/37EizQC7NYyPlKU2d2NElgoX0E+Yags=",
-        "owner": "code-yeongyu",
-        "repo": "oh-my-opencode",
-        "rev": "061a5f5132c32491009555c91774323fc1c9fb02",
-        "type": "github"
-      },
-      "original": {
-        "owner": "code-yeongyu",
-        "repo": "oh-my-opencode",
-        "type": "github"
-      }
-    },
     "root": {
       "inputs": {
         "agenix": "agenix",
@@ -524,7 +508,6 @@
         "nixos-hardware": "nixos-hardware",
         "nixpkgs": "nixpkgs",
         "noctalia": "noctalia",
-        "oh-my-opencode": "oh-my-opencode",
         "stylix": "stylix",
         "zen-browser": "zen-browser"
       }

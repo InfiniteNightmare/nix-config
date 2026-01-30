@@ -59,11 +59,6 @@
       # to have it up-to-date or simply don't specify the nixpkgs input
       inputs.nixpkgs.follows = "nixpkgs";
     };
-
-    oh-my-opencode = {
-      url = "github:code-yeongyu/oh-my-opencode";
-      flake = false;
-    };
   };
 
   outputs =
