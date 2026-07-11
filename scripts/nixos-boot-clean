@@ -1,0 +1,442 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+BOOT_MOUNT=${BOOT_MOUNT:-/boot}
+SYSTEM_PROFILE=${SYSTEM_PROFILE:-/nix/var/nix/profiles/system}
+CONFIGURATION_LIMIT=${CONFIGURATION_LIMIT:-3}
+GC_OPTIONS=${GC_OPTIONS:-}
+MIN_FREE_MIB=${MIN_FREE_MIB:-16}
+CURRENT_SYSTEM=${CURRENT_SYSTEM:-/run/current-system}
+BOOTED_SYSTEM=${BOOTED_SYSTEM:-/run/booted-system}
+
+DRY_RUN=0
+FOR_SWITCH=0
+BOOT_ONLY=0
+GENERATIONS_ONLY=0
+
+usage() {
+  cat <<'EOF'
+Usage: nixos-boot-clean [--for-switch] [--boot-only] [--generations-only] [--dry-run]
+
+Clean old NixOS system generations and stale /boot/kernels files.
+
+Environment variables normally injected by the NixOS module:
+  BOOT_MOUNT             EFI system partition mount point, default: /boot
+  SYSTEM_PROFILE         System profile, default: /nix/var/nix/profiles/system
+  CONFIGURATION_LIMIT    Bootloader generation limit, default: 3
+  GC_OPTIONS             nix.gc.options, used for nix-collect-garbage
+  MIN_FREE_MIB           Free space budget kept on /boot, default: 16
+
+--for-switch reserves one generation slot for the next nixos-rebuild switch.
+EOF
+}
+
+log() {
+  printf 'nixos-boot-clean: %s\n' "$*"
+}
+
+die() {
+  printf 'nixos-boot-clean: error: %s\n' "$*" >&2
+  exit 1
+}
+
+run() {
+  if (( DRY_RUN )); then
+    printf '+'
+    printf ' %q' "$@"
+    printf '\n'
+  else
+    "$@"
+  fi
+}
+
+while (( $# > 0 )); do
+  case "$1" in
+    --for-switch)
+      FOR_SWITCH=1
+      ;;
+    --boot-only)
+      BOOT_ONLY=1
+      ;;
+    --generations-only)
+      GENERATIONS_ONLY=1
+      ;;
+    --dry-run)
+      DRY_RUN=1
+      ;;
+    -h|--help)
+      usage
+      exit 0
+      ;;
+    *)
+      die "unknown argument: $1"
+      ;;
+  esac
+  shift
+done
+
+if (( BOOT_ONLY && GENERATIONS_ONLY )); then
+  die "--boot-only and --generations-only cannot be used together"
+fi
+
+if [[ ${EUID} -ne 0 && ${DRY_RUN} -eq 0 ]]; then
+  die "run this as root, for example: sudo nixos-boot-clean --for-switch"
+fi
+
+if ! [[ ${CONFIGURATION_LIMIT} =~ ^[0-9]+$ ]] || (( CONFIGURATION_LIMIT < 1 )); then
+  die "CONFIGURATION_LIMIT must be a positive integer"
+fi
+
+if ! [[ ${MIN_FREE_MIB} =~ ^[0-9]+$ ]]; then
+  die "MIN_FREE_MIB must be a non-negative integer"
+fi
+
+KERNEL_DIR="${BOOT_MOUNT%/}/kernels"
+MIN_FREE_BYTES=$((MIN_FREE_MIB * 1024 * 1024))
+TARGET_KEEP=${CONFIGURATION_LIMIT}
+declare -a RUNTIME_SYSTEMS=()
+declare -A RUNTIME_BOOT_FILES=()
+
+load_runtime_systems() {
+  local link target existing duplicate
+
+  for link in "${CURRENT_SYSTEM}" "${BOOTED_SYSTEM}"; do
+    if ! target=$(readlink -e -- "${link}"); then
+      die "cannot resolve runtime system ${link}"
+    fi
+
+    duplicate=0
+    for existing in "${RUNTIME_SYSTEMS[@]}"; do
+      if [[ ${existing} == "${target}" ]]; then
+        duplicate=1
+        break
+      fi
+    done
+
+    if (( ! duplicate )); then
+      RUNTIME_SYSTEMS+=("${target}")
+    fi
+  done
+}
+
+validate_boot_mount() {
+  if ! mountpoint -q -- "${BOOT_MOUNT}"; then
+    die "${BOOT_MOUNT} is not a mounted filesystem; refusing boot file cleanup"
+  fi
+}
+
+collect_runtime_boot_files() {
+  local runtime artifact runtime_file file matched
+
+  [[ -d ${KERNEL_DIR} ]] || return
+
+  for runtime in "${RUNTIME_SYSTEMS[@]}"; do
+    for artifact in kernel initrd; do
+      runtime_file="${runtime}/${artifact}"
+      [[ -e ${runtime_file} ]] || continue
+
+      matched=0
+      while IFS= read -r -d '' file; do
+        if cmp -s -- "${runtime_file}" "${file}"; then
+          RUNTIME_BOOT_FILES["${file}"]=1
+          matched=1
+        fi
+      done < <(find "${KERNEL_DIR}" -maxdepth 1 -type f -print0)
+
+      if (( ! matched )); then
+        die "cannot map ${runtime_file} to ${KERNEL_DIR}; refusing cleanup"
+      fi
+    done
+  done
+}
+
+calculate_target_keep() {
+  local boot_size boot_used boot_avail kernel_bytes other_bytes unit_bytes usable fit
+  local kernel_size=0
+  local initrd_size=0
+
+  if [[ ! -d ${BOOT_MOUNT} ]]; then
+    log "${BOOT_MOUNT} does not exist; keeping configured ${CONFIGURATION_LIMIT} generations"
+    TARGET_KEEP=${CONFIGURATION_LIMIT}
+    return
+  fi
+
+  read -r boot_size boot_used boot_avail < <(df -B1 --output=size,used,avail "${BOOT_MOUNT}" | awk 'NR == 2 { print $1, $2, $3 }')
+
+  kernel_bytes=0
+  if [[ -d ${KERNEL_DIR} ]]; then
+    kernel_bytes=$(du -sb "${KERNEL_DIR}" | awk '{ print $1 }')
+  fi
+
+  other_bytes=$((boot_used - kernel_bytes))
+  if (( other_bytes < 0 )); then
+    other_bytes=0
+  fi
+
+  if [[ -e /run/current-system/kernel ]]; then
+    kernel_size=$(stat -Lc '%s' /run/current-system/kernel)
+  fi
+  if [[ -e /run/current-system/initrd ]]; then
+    initrd_size=$(stat -Lc '%s' /run/current-system/initrd)
+  fi
+
+  unit_bytes=$((kernel_size + initrd_size))
+  if (( unit_bytes <= 0 )); then
+    unit_bytes=$((80 * 1024 * 1024))
+  fi
+
+  usable=$((boot_size - other_bytes - MIN_FREE_BYTES))
+  if (( usable < unit_bytes )); then
+    fit=1
+  else
+    fit=$((usable / unit_bytes))
+    if (( fit < 1 )); then
+      fit=1
+    fi
+  fi
+
+  TARGET_KEEP=${CONFIGURATION_LIMIT}
+  if (( fit < TARGET_KEEP )); then
+    TARGET_KEEP=${fit}
+    log "${BOOT_MOUNT} can fit about ${fit} boot generation(s); configured limit is ${CONFIGURATION_LIMIT}"
+  fi
+
+  if (( FOR_SWITCH )); then
+    TARGET_KEEP=$((TARGET_KEEP - 1))
+    if (( TARGET_KEEP < 1 )); then
+      TARGET_KEEP=1
+    fi
+  fi
+
+  log "keeping ${TARGET_KEEP} existing system generation(s)"
+}
+
+trim_system_generations() {
+  local -a generations=()
+  local -a delete_generations=()
+  local current_generation=""
+  local generations_output
+  local line gen protect_from i runtime gen_link candidate target matched
+  local -a candidates=()
+  declare -A protected=()
+
+  if [[ ! -e ${SYSTEM_PROFILE} ]]; then
+    log "${SYSTEM_PROFILE} does not exist; skipping system generation cleanup"
+    return
+  fi
+
+  if ! generations_output=$(nix-env --list-generations -p "${SYSTEM_PROFILE}" 2>&1); then
+    if (( DRY_RUN )); then
+      log "cannot list ${SYSTEM_PROFILE}; skipping system generation dry-run: ${generations_output}"
+      return
+    fi
+    die "cannot list ${SYSTEM_PROFILE}: ${generations_output}"
+  fi
+
+  while IFS= read -r line; do
+    [[ -z ${line} ]] && continue
+    read -r gen _ <<<"${line}"
+    [[ ${gen} =~ ^[0-9]+$ ]] || continue
+    generations+=("${gen}")
+    if [[ ${line} == *current* ]]; then
+      current_generation=${gen}
+    fi
+  done <<<"${generations_output}"
+
+  if (( ${#generations[@]} <= TARGET_KEEP )); then
+    log "system profile already has ${#generations[@]} generation(s)"
+    protect_from=0
+  else
+    protect_from=$((${#generations[@]} - TARGET_KEEP))
+  fi
+
+  for (( i = protect_from; i < ${#generations[@]}; i++ )); do
+    protected["${generations[$i]}"]=1
+  done
+  if [[ -n ${current_generation} ]]; then
+    protected["${current_generation}"]=1
+  fi
+
+  for runtime in "${RUNTIME_SYSTEMS[@]}"; do
+    matched=0
+
+    for gen in "${generations[@]}"; do
+      gen_link="${SYSTEM_PROFILE}-${gen}-link"
+      candidates=("${gen_link}")
+
+      if [[ -d ${gen_link}/specialisation ]]; then
+        for candidate in "${gen_link}"/specialisation/*; do
+          [[ -e ${candidate} ]] && candidates+=("${candidate}")
+        done
+      fi
+
+      for candidate in "${candidates[@]}"; do
+        target=$(readlink -e -- "${candidate}") || continue
+        if [[ ${target} == "${runtime}" ]]; then
+          protected["${gen}"]=1
+          matched=1
+          break 2
+        fi
+      done
+    done
+
+    if (( ! matched )); then
+      die "cannot map runtime system ${runtime} to a ${SYSTEM_PROFILE} generation"
+    fi
+  done
+
+  for gen in "${generations[@]}"; do
+    if [[ -z ${protected[${gen}]+x} ]]; then
+      delete_generations+=("${gen}")
+    fi
+  done
+
+  if (( ${#delete_generations[@]} == 0 )); then
+    log "no system generations selected for deletion"
+    return
+  fi
+
+  log "deleting system generation(s): ${delete_generations[*]}"
+  run nix-env --delete-generations -p "${SYSTEM_PROFILE}" "${delete_generations[@]}"
+}
+
+collect_protected_grub_files() {
+  local grub_cfg="${BOOT_MOUNT%/}/grub/grub.cfg"
+
+  [[ -r ${grub_cfg} ]] || return
+
+  awk -v limit="${TARGET_KEEP}" '
+    /^menuentry "NixOS - Configuration / {
+      count++
+      keep = count <= limit
+      next
+    }
+    /^menuentry / || /^submenu / {
+      if ($0 !~ /^menuentry "NixOS - Configuration /) {
+        keep = 0
+      }
+    }
+    keep && /^[[:space:]]*(linux|initrd)[[:space:]]/ {
+      for (i = 1; i <= NF; i++) {
+        if ($i ~ /\/kernels\//) {
+          path = $i
+          sub(/^\([^)]*\)/, "", path)
+          sub(/^\/+/, "", path)
+          print path
+        }
+      }
+    }
+  ' "${grub_cfg}"
+}
+
+collect_protected_systemd_boot_files() {
+  local entries_dir="${BOOT_MOUNT%/}/loader/entries"
+
+  [[ -d ${entries_dir} ]] || return
+
+  find "${entries_dir}" -maxdepth 1 -type f -name '*.conf' -printf '%T@ %p\n' \
+    | sort -rn \
+    | awk -v limit="${TARGET_KEEP}" 'NR <= limit { print $2 }' \
+    | while IFS= read -r entry; do
+        awk '
+          /^[[:space:]]*(linux|initrd)[[:space:]]/ {
+            for (i = 2; i <= NF; i++) {
+              if ($i ~ /\/kernels\//) {
+                path = $i
+                sub(/^\/+/, "", path)
+                print path
+              }
+            }
+          }
+        ' "${entry}"
+      done
+}
+
+trim_boot_files() {
+  local file rel
+  local protected_count=0
+  local -a delete_files=()
+  declare -A protected_files=()
+
+  if [[ ! -d ${KERNEL_DIR} ]]; then
+    log "${KERNEL_DIR} does not exist; skipping boot file cleanup"
+    return
+  fi
+
+  while IFS= read -r rel; do
+    [[ -n ${rel} ]] || continue
+    protected_files["${BOOT_MOUNT%/}/${rel}"]=1
+    protected_count=$((protected_count + 1))
+  done < <(
+    collect_protected_grub_files
+    collect_protected_systemd_boot_files
+  )
+
+  for file in "${!RUNTIME_BOOT_FILES[@]}"; do
+    protected_files["${file}"]=1
+  done
+  protected_count=${#protected_files[@]}
+
+  while IFS= read -r -d '' file; do
+    if [[ ${file} == *.tmp ]]; then
+      delete_files+=("${file}")
+    elif (( protected_count > 0 )) && [[ -z ${protected_files[${file}]+x} ]]; then
+      delete_files+=("${file}")
+    fi
+  done < <(find "${KERNEL_DIR}" -maxdepth 1 -type f -print0)
+
+  if (( protected_count == 0 )); then
+    log "could not parse protected boot files; only temporary files will be removed"
+  fi
+
+  if (( ${#delete_files[@]} == 0 )); then
+    log "no stale boot files selected for deletion"
+    return
+  fi
+
+  log "deleting ${#delete_files[@]} stale boot file(s):"
+  printf '  %s\n' "${delete_files[@]}"
+  run rm -f -- "${delete_files[@]}"
+}
+
+collect_garbage() {
+  local -a gc_args=()
+
+  if (( BOOT_ONLY )); then
+    return
+  fi
+
+  if [[ -n ${GC_OPTIONS} ]]; then
+    read -r -a gc_args <<<"${GC_OPTIONS}"
+    log "running nix-collect-garbage ${GC_OPTIONS}"
+    run nix-collect-garbage "${gc_args[@]}"
+  else
+    log "running nix-collect-garbage"
+    run nix-collect-garbage
+  fi
+}
+
+load_runtime_systems
+
+if (( ! GENERATIONS_ONLY )); then
+  validate_boot_mount
+  collect_runtime_boot_files
+fi
+
+calculate_target_keep
+
+if (( FOR_SWITCH )); then
+  log "pre-switch cleanup may invalidate older boot menu entries until switch completes"
+fi
+
+if (( ! BOOT_ONLY )); then
+  trim_system_generations
+fi
+
+if (( ! GENERATIONS_ONLY )); then
+  trim_boot_files
+fi
+
+collect_garbage
+
+log "done"

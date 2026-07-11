@@ -1,0 +1,36 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
+FLAKE_REF=${FLAKE_REF:-.#thinkbook}
+NIXOS_REBUILD=${NIXOS_REBUILD:-/run/current-system/sw/bin/nixos-rebuild}
+BOOT_CLEAN=${BOOT_CLEAN:-${SCRIPT_DIR}/nixos-boot-clean}
+
+export BOOT_MOUNT=${BOOT_MOUNT:-/boot}
+export CONFIGURATION_LIMIT=${CONFIGURATION_LIMIT:-3}
+export GC_OPTIONS=${GC_OPTIONS:---delete-older-than 7d}
+export MIN_FREE_MIB=${MIN_FREE_MIB:-16}
+
+if [[ ${EUID} -ne 0 ]]; then
+  printf 'nixos-clean-switch: error: run this as root, for example: sudo %s\n' "$0" >&2
+  exit 1
+fi
+
+if [[ ! -x ${NIXOS_REBUILD} ]]; then
+  if ! NIXOS_REBUILD=$(command -v nixos-rebuild); then
+    printf 'nixos-clean-switch: error: cannot find nixos-rebuild\n' >&2
+    exit 1
+  fi
+fi
+
+printf 'nixos-clean-switch: validating the target configuration\n'
+"${NIXOS_REBUILD}" build --flake "${FLAKE_REF}" "$@"
+
+printf 'nixos-clean-switch: running pre-switch cleanup\n'
+"${BOOT_CLEAN}" --for-switch
+
+printf 'nixos-clean-switch: running nixos-rebuild switch --flake %s\n' "${FLAKE_REF}"
+"${NIXOS_REBUILD}" switch --flake "${FLAKE_REF}" "$@"
+
+printf 'nixos-clean-switch: running post-switch boot cleanup\n'
+"${BOOT_CLEAN}" --boot-only
