@@ -1,4 +1,9 @@
-{ pkgs, inputs, ... }:
+{
+  inputs,
+  pkgs,
+  userName,
+  ...
+}:
 let
   # Wrap Zotero to force X11 backend via XWayland for niri compatibility
   zoteroX11 = pkgs.symlinkJoin {
@@ -16,12 +21,17 @@ in
   imports = [
     ./editor
     ./fcitx5
+    ./llm-agents
+    ./proxy
     ./shell
     ./niri
+    ./xdg
+    ./media
+    ./latex
   ];
 
-  home.username = "charname";
-  home.homeDirectory = "/home/charname";
+  home.username = userName;
+  home.homeDirectory = "/home/${userName}";
 
   home.packages = with pkgs; [
     fastfetch
@@ -111,7 +121,8 @@ in
     obsidian
 
     # program
-    devcontainer
+    gh
+    # devcontainer
 
     # clipboard
     wl-clipboard
@@ -122,7 +133,6 @@ in
     keepassxc
 
     # polkit-kde-agent
-    mate.mate-polkit
     gnome-keyring
 
     xdg-utils
@@ -131,7 +141,7 @@ in
 
     pandoc
 
-    gimp
+    # gimp
 
     grim
     slurp
@@ -144,8 +154,6 @@ in
     zed-editor
     vscode
     uv
-    gemini-cli
-    opencode
 
     devbox
 
@@ -156,23 +164,19 @@ in
     # bilibili
 
     pwvucontrol
-    helvum
+    crosspipe
 
     mpvpaper
     splayer
 
-    # sddm-astronaut
-
     xcur2png
-
-    # waynnvnc
-    # wlvncc
 
     localsend
     freerdp
     # deskflow
 
     waveterm
+    warp-terminal
 
     czkawka
 
@@ -190,14 +194,21 @@ in
     xwayland-satellite
 
     wpsoffice-cn
+    drawio
 
-    # wechatDirect
     wechat
     wemeet
 
-    animeko
+    # animeko
 
-    cherry-studio
+    feishu
+
+    taisei
+
+    brave
+    readest
+
+    obs-studio
   ];
 
   programs.git = {
@@ -206,13 +217,6 @@ in
       user.name = "InfiniteNightmare";
       user.email = "742851870@qq.com";
     };
-  };
-
-  programs.obs-studio = {
-    enable = true;
-    plugins = with pkgs.obs-studio-plugins; [
-      obs-pipewire-audio-capture
-    ];
   };
 
   programs.direnv = {
@@ -228,27 +232,18 @@ in
       DisableAppUpdate = true;
       DisableTelemetry = true;
     };
-    nativeMessagingHosts = [ pkgs.firefoxpwa ];
+    # The firefoxpwa wrapper currently fails to build; the unwrapped package
+    # still provides the native messaging manifest and connector Zen needs.
+    nativeMessagingHosts = [ pkgs.firefoxpwa-unwrapped ];
     # Add any other native connectors here
+  };
+
+  home.sessionVariables = {
+    GTK_USE_PORTAL = "1";
   };
 
   services.syncthing = {
     enable = true;
-  };
-
-  systemd.user.services.vibe-kanban = {
-    Unit = {
-      Description = "Vibe Kanban MCP Server";
-      After = [ "network.target" ];
-    };
-    Service = {
-      ExecStart = "${pkgs.nodejs}/bin/npx -y vibe-kanban";
-      Restart = "always";
-      Environment = "PATH=${pkgs.nodejs}/bin:${pkgs.bash}/bin:$PATH PORT=4000";
-    };
-    Install = {
-      WantedBy = [ "default.target" ];
-    };
   };
 
   xdg = {
@@ -274,8 +269,8 @@ in
     opacity = {
       terminal = 0.95;
       applications = 1.0;
-      desktop = 1.0;
-      popups = 0.95;
+      desktop = 0.9;
+      popups = 0.92;
     };
 
     # Override colors for better contrast
@@ -307,6 +302,8 @@ in
       };
     };
 
+    targets.foot.colors.enable = false;
+    targets.foot.opacity.enable = false;
     targets.zen-browser.profileNames = [ "default" ];
   };
 
@@ -318,13 +315,11 @@ in
   # You can update Home Manager without changing this value. See
   # the Home Manager release notes for a list of state version
   # changes in each release.
-  home.stateVersion = "25.05";
+  home.stateVersion = "26.05";
 
   # Disable nixpkgs version mismatch warning for unstable branch
   home.enableNixpkgsReleaseCheck = false;
 
   # Let Home Manager install and manage itself.
   programs.home-manager.enable = true;
-
-  home.file.".oh-my-opencode".source = inputs.oh-my-opencode;
 }

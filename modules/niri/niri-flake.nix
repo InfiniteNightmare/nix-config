@@ -1,4 +1,27 @@
 { pkgs, ... }:
+
+let
+  externalUltrawideOutput = {
+    mode = {
+      width = 5120;
+      height = 2160;
+      refresh = 45.000;
+    };
+    scale = 1.5;
+    position = {
+      x = 0;
+      y = -1440;
+    };
+  };
+
+  noctaliaMsg =
+    args:
+    [
+      "noctalia"
+      "msg"
+    ]
+    ++ args;
+in
 {
   programs.niri.settings = {
     # Environment variables
@@ -49,18 +72,9 @@
         };
       };
 
-      "DP-1" = {
-        mode = {
-          width = 5120;
-          height = 2160;
-          refresh = 45.000;
-        };
-        scale = 1.5;
-        position = {
-          x = 0;
-          y = -1440;
-        };
-      };
+      "DP-1" = externalUltrawideOutput;
+
+      "DP-2" = externalUltrawideOutput;
 
       "HDMI-A-1" = {
         mode = {
@@ -94,7 +108,7 @@
 
       focus-ring = {
         enable = true;
-        width = 4;
+        width = 3;
         # Colors managed by Stylix
       };
 
@@ -105,18 +119,18 @@
       };
 
       shadow = {
-        enable = false;
-        softness = 30.0;
-        spread = 5.0;
+        enable = true;
+        softness = 32.0;
+        spread = 4.0;
         offset = {
           x = 0.0;
-          y = 5.0;
+          y = 8.0;
         };
-        color = "#0007";
+        color = "#0008";
       };
 
       struts = {
-        top = -24;
+        top = 0;
       };
     };
 
@@ -129,18 +143,18 @@
 
     # Spawn at startup
     spawn-at-startup = [
-      { argv = [ "noctalia-shell" ]; }
-      { argv = [ "swaync" ]; }
+      { argv = [ "noctalia" ]; }
       { argv = [ "fcitx5" ]; }
       { argv = [ "sunsetr" ]; }
       { argv = [ "xwayland-satellite" ]; }
       { sh = "wl-paste --watch cliphist store"; }
-      # { argv = [ "${pkgs.mate.mate-polkit}/libexec/polkit-mate-authentication-agent-1" ]; }
       { sh = "udiskie -s"; }
       { sh = "foot --server"; }
       { sh = "keepassxc --minimized"; }
       { argv = [ "cherry-studio" ]; }
-      { sh = ''mpvpaper -p -n 600 -o "--shuffle --no-audio --hwdec=auto-safe --vf=fps=30 --panscan=1.0" eDP-1 /data/Videos''; }
+      # {
+      # sh = ''mpvpaper -p -n 600 -o "--shuffle --no-audio --hwdec=auto-safe --vf=fps=30 --panscan=1.0" eDP-1 /data/Videos'';
+      # }
     ];
 
     # Config notification
@@ -163,21 +177,42 @@
           bottom-left = 12.0;
           bottom-right = 12.0;
         };
+        opacity = 0.9;
         clip-to-geometry = true;
         draw-border-with-background = false;
-        opacity = 0.9;
         focus-ring = {
           enable = true;
-          width = 4;
+          width = 3;
           # Focus ring colors managed by Stylix
         };
       }
-      # {
-      #   matches = [
-      #     { is-active = true; }
-      #   ];
-      #   opacity = 1.0;
-      # }
+      {
+        matches = [
+          { is-active = false; }
+        ];
+        opacity = 0.8;
+      }
+      {
+        matches = [
+          { app-id = "^mpv$"; }
+          { app-id = "^vlc$"; }
+          { app-id = "^com\\.obsproject\\.Studio$"; }
+          { app-id = "^steam_app_.*"; }
+          {
+            app-id = "firefox$";
+            title = "^Picture-in-Picture$";
+          }
+          {
+            app-id = "zen";
+            title = "画中画";
+          }
+          {
+            app-id = "SPlayer";
+            title = "SPlayer - 桌面歌词";
+          }
+        ];
+        opacity = 1.0;
+      }
 
       # WezTerm
       {
@@ -192,7 +227,7 @@
         matches = [
           {
             app-id = "firefox$";
-            title = ''^Picture-in-Picture$'';
+            title = "^Picture-in-Picture$";
           }
         ];
         open-floating = true;
@@ -230,6 +265,28 @@
         ];
         open-focused = false;
       }
+
+      # Splayer
+      {
+        matches = [
+          {
+            app-id = "SPlayer";
+            title = "SPlayer - 桌面歌词";
+          }
+        ];
+        open-floating = true;
+        default-floating-position = {
+          x = 0;
+          y = 32;
+          relative-to = "bottom";
+        };
+        default-column-width = {
+          fixed = 1000;
+        };
+        default-window-height = {
+          fixed = 150;
+        };
+      }
     ];
 
     # Layer rules
@@ -237,7 +294,7 @@
       # swww
       {
         matches = [
-          { namespace = ''^swww-daemon$''; }
+          { namespace = "^swww-daemon$"; }
         ];
         place-within-backdrop = true;
       }
@@ -245,21 +302,21 @@
       # noctalia-wallpaper
       {
         matches = [
-          { namespace = ''^noctalia-wallpaper.*''; }
+          { namespace = "^noctalia-wallpaper.*"; }
         ];
         place-within-backdrop = true;
       }
-      
+
       {
         matches = [
           { namespace = "^mpvpaper$"; }
         ];
         place-within-backdrop = true;
       }
-      
+
       {
         matches = [
-          { namespace = ''^linux-wallpaperengine.*''; }
+          { namespace = "^linux-wallpaperengine.*"; }
         ];
         place-within-backdrop = true;
       }
@@ -269,64 +326,112 @@
     binds = {
       # Noctalia keybinds
       "Alt+Space" = {
-        action.spawn = [
-          "noctalia-shell"
-          "ipc"
-          "call"
+        action.spawn = noctaliaMsg [
+          "panel-toggle"
           "launcher"
-          "toggle"
         ];
         hotkey-overlay.title = "Application Launcher";
       };
+      "Alt+C" = {
+        action.spawn = noctaliaMsg [
+          "panel-toggle"
+          "control-center"
+        ];
+        hotkey-overlay.title = "Control Center";
+      };
+      "Alt+V" = {
+        action.spawn = noctaliaMsg [
+          "panel-toggle"
+          "clipboard"
+        ];
+        hotkey-overlay.title = "Clipboard History";
+      };
+      "Alt+W" = {
+        action.spawn = noctaliaMsg [
+          "panel-toggle"
+          "wallpaper"
+        ];
+        hotkey-overlay.title = "Wallpaper Picker";
+      };
       "Super+Alt+L" = {
-        action.spawn = [
-          "noctalia-shell"
-          "ipc"
-          "call"
-          "lockScreen"
+        action.spawn = noctaliaMsg [
+          "session"
           "lock"
         ];
         hotkey-overlay.title = "Lock Screen";
       };
       "Alt+X" = {
-        action.spawn = [
-          "noctalia-shell"
-          "ipc"
-          "call"
-          "sessionMenu"
-          "toggle"
+        action.spawn = noctaliaMsg [
+          "panel-toggle"
+          "session"
         ];
         hotkey-overlay.title = "Power Menu";
       };
 
       # Volume control
       "XF86AudioRaiseVolume" = {
-        action.spawn = [
-          "noctalia-shell"
-          "ipc"
-          "call"
-          "volume"
-          "increase"
+        action.spawn = noctaliaMsg [
+          "volume-up"
+          "5"
         ];
         allow-when-locked = true;
       };
       "XF86AudioLowerVolume" = {
-        action.spawn = [
-          "noctalia-shell"
-          "ipc"
-          "call"
-          "volume"
-          "decrease"
+        action.spawn = noctaliaMsg [
+          "volume-down"
+          "5"
         ];
         allow-when-locked = true;
       };
       "XF86AudioMute" = {
-        action.spawn = [
-          "noctalia-shell"
-          "ipc"
-          "call"
-          "volume"
-          "muteOutput"
+        action.spawn = noctaliaMsg [ "volume-mute" ];
+        allow-when-locked = true;
+      };
+      "XF86AudioMicMute" = {
+        action.spawn = noctaliaMsg [ "mic-mute" ];
+        allow-when-locked = true;
+      };
+      "XF86MonBrightnessUp" = {
+        action.spawn = noctaliaMsg [
+          "brightness-up"
+          "current"
+          "5"
+        ];
+        allow-when-locked = true;
+      };
+      "XF86MonBrightnessDown" = {
+        action.spawn = noctaliaMsg [
+          "brightness-down"
+          "current"
+          "5"
+        ];
+        allow-when-locked = true;
+      };
+      "XF86AudioPlay" = {
+        action.spawn = noctaliaMsg [
+          "media"
+          "toggle"
+        ];
+        allow-when-locked = true;
+      };
+      "XF86AudioNext" = {
+        action.spawn = noctaliaMsg [
+          "media"
+          "next"
+        ];
+        allow-when-locked = true;
+      };
+      "XF86AudioPrev" = {
+        action.spawn = noctaliaMsg [
+          "media"
+          "previous"
+        ];
+        allow-when-locked = true;
+      };
+      "XF86AudioStop" = {
+        action.spawn = noctaliaMsg [
+          "media"
+          "stop"
         ];
         allow-when-locked = true;
       };
@@ -494,7 +599,10 @@
       # Screenshots
       "Print".action.screenshot = [ ];
       "Mod+Alt+P" = {
-        action.spawn = [ "hyprpicker" "-a" ];
+        action.spawn = [
+          "hyprpicker"
+          "-a"
+        ];
         hotkey-overlay.title = "Color Picker";
       };
 

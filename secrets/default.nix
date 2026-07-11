@@ -1,12 +1,8 @@
-{ lib, ... }:
-let
-  charname = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFNAmYWAguhT73kqYCOq/eba6QpYjCdFbRz9pCix8Vdl haobosun@zju.edu.cn";
-  users = [ charname ];
-in
+{ userName, ... }:
 {
   # Paths to local age private keys used for decryption on this machine.
   age.identityPaths = [
-    "/home/charname/.ssh/id_ed25519"
+    "/home/${userName}/.ssh/id_ed25519"
   ];
 
   # Shared WebDAV password secret.
@@ -14,5 +10,9 @@ in
     file = ./webdav-password.age;
   };
 
+  # Minimax API Key (Environment File format: KEY=VALUE)
+  age.secrets.minimax-env = {
+    file = ./minimax-env.age;
+  };
 
 }
