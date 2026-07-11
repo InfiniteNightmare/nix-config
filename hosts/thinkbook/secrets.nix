@@ -3,10 +3,10 @@
   /*
     Host-specific secrets module for 'thinkbook'.
 
-    This file is imported AFTER the centralized ../../secrets (default.nix),
-    so anything defined here can:
+    This file complements the centralized ../../secrets module. Nix merges
+    module definitions independently of import order, so definitions here can:
       - Add new secrets used only by this host.
-      - Override centralized secrets (same attribute name).
+      - Override centralized secret fields explicitly with lib.mkForce.
       - Append / override age.identityPaths if this host has extra private keys.
 
     Quick reference:
@@ -20,9 +20,8 @@
          };
 
     2. Override a shared secret (e.g. use a different WebDAV password for this host):
-         age.secrets.webdav-password = {
-           file = ../../secrets/webdav-password-alt.age;
-         };
+         age.secrets.webdav-password.file =
+           lib.mkForce ../../secrets/webdav-password-alt.age;
 
     3. Add an additional private key (if you generated a per-host key):
          age.identityPaths = lib.mkAfter [
@@ -56,10 +55,15 @@
   #   file = ../../secrets/thinkbook-extra-token.age;
   # };
 
-  # Override shared webdav password (example):
-  # age.secrets.webdav-password = {
-  #   file = ../../secrets/webdav-password-alt.age;
+  # ZJU Connect account password, used by services.zjuConnect.passwordSecret.
+  # Create ../../secrets/zju-connect-password.age first, then uncomment:
+  # age.secrets.zju-connect-password = {
+  #   file = ../../secrets/zju-connect-password.age;
   # };
+
+  # Override shared webdav password (example):
+  # age.secrets.webdav-password.file =
+  #   lib.mkForce ../../secrets/webdav-password-alt.age;
 
   # Append an additional per-host private key if you generated one:
   # age.identityPaths = lib.mkAfter [

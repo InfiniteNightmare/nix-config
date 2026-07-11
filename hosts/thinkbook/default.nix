@@ -3,9 +3,9 @@
 # and in the NixOS manual (accessible by running ‘nixos-help’).
 
 {
-  lib,
-  pkgs,
   inputs,
+  pkgs,
+  userName,
   ...
 }:
 
@@ -14,10 +14,13 @@
     ./hardware-configuration.nix
     ./locale.nix
     ../../modules/windows-fonts.nix
+    ../../modules/boot-cleanup.nix
     ../../modules/filesystems/webdav.nix
     ../../modules/container
     ../../modules/btrfs-snapshots
+    ../../modules/zju-connect
     ../../secrets
+    ./secrets.nix
     inputs.agenix.nixosModules.default
   ];
 
@@ -59,11 +62,33 @@
 
   networking.hostName = "nixos";
 
-  networking.networkmanager.enable = true;
+  networking.networkmanager = {
+    enable = true;
+    ensureProfiles.profiles.wired-10-214-104 = {
+      connection = {
+        id = "wired-10-214-104";
+        type = "ethernet";
+        interface-name = "enp2s0";
+        autoconnect = true;
+        autoconnect-priority = 100;
+      };
+      ipv4 = {
+        method = "manual";
+        addresses = "10.214.104.3/24";
+        gateway = "10.214.104.1";
+        dns = "10.10.0.21";
+        dns-priority = -50;
+        route-metric = 100;
+        never-default = false;
+      };
+      ipv6.method = "disabled";
+    };
+  };
   networking.proxy = {
     httpProxy = "http://127.0.0.1:7890";
     httpsProxy = "http://127.0.0.1:7890";
     allProxy = "socks5://127.0.0.1:7890";
+    noProxy = "localhost,127.0.0.1,::1,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16";
   };
   networking.firewall.allowedTCPPorts = [
     3025
@@ -90,10 +115,12 @@
     settings = {
       default_session = {
         command = "${pkgs.niri-unstable}/bin/niri-session";
-        user = "charname";
+        user = userName;
       };
     };
   };
+
+  security.rtkit.enable = true;
 
   services.pipewire = {
     enable = true;
@@ -117,15 +144,30 @@
     };
   };
 
+  systemd.services.micGainFix = {
+    description = "Apply safe internal microphone gain";
+    after = [ "sound.target" ];
+    wantedBy = [ "multi-user.target" ];
+    serviceConfig.Type = "oneshot";
+    script = ''
+      ${pkgs.alsa-utils}/bin/amixer -c 1 sset 'Internal Mic Boost' 0 || true
+      ${pkgs.alsa-utils}/bin/amixer -c 1 sset Capture 35% || true
+    '';
+  };
+
+  # Avahi can leave a stale PID file after rebuild restarts; remove it before
+  # the service sandbox drops the privileges needed to clean /run/avahi-daemon.
+  systemd.services.avahi-daemon.serviceConfig.ExecStartPre =
+    "+${pkgs.coreutils}/bin/rm -f /run/avahi-daemon/pid";
+
   # services.blueman.enable = true;
 
   programs.fish.enable = true;
 
-  users.users.charname = {
+  users.users.${userName} = {
     isNormalUser = true;
     extraGroups = [
       "wheel"
-      "davfs2"
     ];
     shell = pkgs.fish;
   };
@@ -140,11 +182,15 @@
     auto-optimise-store = true;
     builders-use-substitutes = true;
     substituters = [
+      "https://cache.numtide.com"
+      "https://noctalia.cachix.org"
       "https://niri.cachix.org"
       "https://mirrors.ustc.edu.cn/nix-channels/store"
       "https://cache.nixos.org"
     ];
     trusted-public-keys = [
+      "niks3.numtide.com-1:DTx8wZduET09hRmMtKdQDxNNthLQETkc/yaX7M4qK0g="
+      "noctalia.cachix.org-1:pCOR47nnMEo5thcxNDtzWpOxNFQsBRglJzxWPp3dkU4="
       "niri.cachix.org-1:Wv0OmO7PsuocRKzfDoJ3mulSl7Z6oezYhGhR+3W2964="
       "cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY="
     ];
@@ -153,7 +199,29 @@
   nix.gc = {
     automatic = true;
     dates = "weekly";
-    options = "--delete-older-than 1w";
+    options = "--delete-older-than 7d";
+  };
+
+  programs.nixosCleanSwitch = {
+    enable = true;
+    flake = "/home/${userName}/nix-config";
+    host = "thinkbook";
+  };
+
+  services.zjuConnect = {
+    installCli = true;
+
+    # Enable after adding an agenix secret for the account password.
+    # enable = true;
+    # username = "your-zju-account";
+    # passwordSecret = "zju-connect-password";
+    # protocol = "easyconnect";
+    # socksBind = "127.0.0.1:1080";
+    # httpBind = "127.0.0.1:1081";
+
+    # For aTrust, persist client state to avoid repeated verification.
+    # protocol = "atrust";
+    # clientDataFile = "/var/lib/zju-connect/client_data.json";
   };
 
   environment.systemPackages = with pkgs; [
@@ -163,10 +231,10 @@
     curl
     helix
     sddm-astronaut
-    clash-verge-rev
     age
     ragenix
     system-config-printer
+    nodejs
   ];
 
   environment.variables = {
@@ -182,6 +250,13 @@
   environment.sessionVariables.NIXOS_OZONE_WL = "1";
 
   programs = {
+    clash-verge = {
+      enable = true;
+      autoStart = true;
+      # serviceMode = true;
+      # tunMode = true;
+      # group = "users";
+    };
     niri = {
       enable = true;
       package = pkgs.niri-unstable;
@@ -203,7 +278,6 @@
   services = {
     geoclue2.enable = true;
     upower.enable = true;
-    noctalia-shell.enable = true;
     # power-profiles-daemon.enable = true;
     udisks2 = {
       enable = true;
@@ -277,11 +351,11 @@
     mounts = {
       fnos = {
         url = "http://10.214.131.20:5005";
-        username = "charname";
+        username = userName;
         secret = "webdav-password";
         mountPoint = "/mnt/fnos";
         readOnly = false;
-        cache.sizeMiB = 100;
+        cache.sizeMiB = 5000;
         automount = true;
       };
     };
@@ -291,10 +365,12 @@
     enable = true;
     # xdgOpenUsePortal = true;
     extraPortals = with pkgs; [
+      xdg-desktop-portal-termfilechooser
       xdg-desktop-portal-wlr
       xdg-desktop-portal-gtk
     ];
     config.common.default = [
+      "termfilechooser"
       "wlr"
       "gtk"
     ];
@@ -304,7 +380,8 @@
   # Btrfs 自动快照配置
   # ============================================
   services.btrfsSnapshots = {
-    enable = true;
+    # Disabled until the snapshot layout and retention policy are redesigned.
+    enable = false;
 
     # 在 NixOS rebuild 时创建快照（配置切换前）
     snapshotOnRebuild = true;
@@ -350,13 +427,14 @@
   # NAS 备份配置（btrbk 增量同步到 btrfs NAS）
   # ============================================
   services.btrfsNasBackup = {
-    enable = true;
+    # Disabled with local snapshots; the current btrbk unit cannot read its SSH key.
+    enable = false;
 
     # NAS 配置
     nasHost = "10.214.131.20";
     nasPort = 2222;
-    nasUser = "charname";
-    sshKeyFile = "/home/charname/.ssh/id_ed25519";
+    nasUser = userName;
+    sshKeyFile = "/home/${userName}/.ssh/id_ed25519";
     backupBasePath = "/vol2/1001/snapshots";
 
     # 备份计划
@@ -370,9 +448,6 @@
       snapshot = "14d 4w"; # 本地快照：14天 + 4周
       target = "30d 12w 12m 2y"; # NAS 备份：30天 + 12周 + 12月 + 2年
     };
-  };
-
-  specialisation = {
   };
 
   system.stateVersion = "25.05";
