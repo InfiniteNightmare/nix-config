@@ -28,7 +28,12 @@
       function __proxy_on --description 'Enable local proxy'
         set -gx http_proxy  http://127.0.0.1:7890
         set -gx https_proxy http://127.0.0.1:7890
+        set -gx all_proxy   socks5h://127.0.0.1:7890
         set -gx no_proxy localhost,127.0.0.1,::1
+
+        set -gx HTTP_PROXY $http_proxy
+        set -gx HTTPS_PROXY $https_proxy
+        set -gx ALL_PROXY $all_proxy
         set -gx NO_PROXY $no_proxy
         echo "[proxy] enabled -> $http_proxy"
       end
@@ -36,7 +41,12 @@
       function __proxy_off --description 'Disable proxy'
         set -e http_proxy
         set -e https_proxy
+        set -e all_proxy
         set -e no_proxy
+
+        set -e HTTP_PROXY
+        set -e HTTPS_PROXY
+        set -e ALL_PROXY
         set -e NO_PROXY
         echo "[proxy] disabled"
       end
