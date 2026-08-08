@@ -12,8 +12,9 @@ in
   programs.noctalia = {
     enable = true;
     settings = {
+      accessibility.ui_scale = 1.0;
+
       shell = {
-        ui_scale = 1.0;
         corner_radius_scale = 1.06;
         font_family = lib.mkDefault "sans-serif";
         lang = "zh-CN";
@@ -26,7 +27,6 @@ in
         polkit_agent = false;
         password_style = "default";
         settings_show_advanced = true;
-        middle_click_opens_widget_settings = true;
         show_location = true;
         app_icon_colorize = false;
         launch_apps_as_systemd_services = false;
@@ -52,19 +52,24 @@ in
           transparency_mode = "glass";
           borders = true;
           shadow = true;
-          launcher_placement = "centered";
-          clipboard_placement = "centered";
+          launcher_placement = "floating";
+          clipboard_placement = "floating";
           control_center_placement = "attached";
           wallpaper_placement = "attached";
           session_placement = "attached";
+          launcher_position = "center";
+          clipboard_position = "center";
           open_near_click_control_center = true;
           open_near_click_launcher = false;
           open_near_click_clipboard = false;
           open_near_click_wallpaper = true;
           open_near_click_session = true;
-          launcher_categories = true;
-          launcher_show_icons = true;
-          launcher_compact = false;
+        };
+
+        launcher = {
+          categories = true;
+          show_icons = true;
+          compact = false;
         };
 
         screen_corners = {
@@ -183,8 +188,8 @@ in
         cpu = {
           type = "sysmon";
           stat = "cpu_usage";
-          display = "text";
-          show_label = true;
+          visualization = "none";
+          show_value = true;
           label_min_width = 34;
           highlight_color = "primary";
           capsule = true;
@@ -193,8 +198,8 @@ in
         ram = {
           type = "sysmon";
           stat = "ram_pct";
-          display = "text";
-          show_label = true;
+          visualization = "none";
+          show_value = true;
           label_min_width = 34;
           highlight_color = "secondary";
           capsule = true;
@@ -219,8 +224,9 @@ in
         };
 
         workspaces = {
-          minimal = false;
-          display = "id";
+          style = "regular";
+          show_labels = true;
+          label_source = "id";
           labels_only_when_occupied = false;
           hide_when_empty = false;
           max_label_chars = 2;
@@ -259,13 +265,11 @@ in
 
         volume = {
           device = "output";
-          scroll_step = 5;
           show_label = true;
           capsule = true;
         };
 
         brightness = {
-          scroll_step = 5;
           show_label = true;
           capsule = true;
         };
@@ -395,7 +399,6 @@ in
         collapse_on_dismiss = true;
         blacklist = [ ];
         blacklist_allow_critical = true;
-        allowed_urgencies = [ ];
       };
 
       osd = {
@@ -451,8 +454,6 @@ in
         cpu_temp_critical_threshold = 90.0;
         ram_pct_activity_threshold = 80.0;
         ram_pct_critical_threshold = 90.0;
-        disk_pct_activity_threshold = 80.0;
-        disk_pct_critical_threshold = 90.0;
       };
 
       weather = {

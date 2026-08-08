@@ -9,6 +9,9 @@
   ...
 }:
 
+let
+  niriPackage = inputs.niri.packages.${pkgs.stdenv.hostPlatform.system}.niri-unstable;
+in
 {
   imports = [
     ./hardware-configuration.nix
@@ -114,7 +117,7 @@
     enable = true;
     settings = {
       default_session = {
-        command = "${pkgs.niri-unstable}/bin/niri-session";
+        command = "${niriPackage}/bin/niri-session";
         user = userName;
       };
     };
@@ -259,7 +262,7 @@
     };
     niri = {
       enable = true;
-      package = pkgs.niri-unstable;
+      package = niriPackage;
     };
     nix-ld.enable = true;
     steam = {

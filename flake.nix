@@ -4,6 +4,11 @@
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
 
+    nur = {
+      url = "github:nix-community/NUR";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+
     home-manager = {
       url = "github:nix-community/home-manager";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -14,10 +19,7 @@
       # Keep Noctalia's own nixpkgs input so its derivation matches upstream Cachix.
     };
 
-    niri = {
-      url = "github:sodiboo/niri-flake";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
+    niri.url = "github:sodiboo/niri-flake";
 
     agenix = {
       url = "github:yaxitech/ragenix";
@@ -65,9 +67,6 @@
           inputs.nixos-hardware.nixosModules.common-pc-laptop-ssd
 
           inputs.niri.nixosModules.niri
-          {
-            nixpkgs.overlays = [ inputs.niri.overlays.niri ];
-          }
         ];
       };
     };
