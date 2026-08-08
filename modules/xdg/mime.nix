@@ -3,6 +3,9 @@
   xdg.mimeApps = {
     enable = true;
     defaultApplications = {
+      # --- File Management ---
+      "inode/directory" = "yazi.desktop";
+
       # --- Browser and Web ---
       "text/html" = "zen-beta.desktop";
       "x-scheme-handler/http" = "zen-beta.desktop";

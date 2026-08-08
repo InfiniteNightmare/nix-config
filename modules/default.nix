@@ -160,8 +160,6 @@ in
 
     neovide
 
-    nemo-with-extensions
-
     # bilibili
 
     pwvucontrol

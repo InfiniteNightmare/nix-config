@@ -1,6 +1,9 @@
 { config, pkgs, ... }:
 {
-  imports = [ ./mime.nix ];
+  imports = [
+    ./mime.nix
+    ./yazi-file-manager.nix
+  ];
 
   xdg.configFile."xdg-desktop-portal-termfilechooser/config".text = ''
     [filechooser]
@@ -42,7 +45,7 @@
           set -- --chooser-file="$out" "$path"
       fi
 
-      ${pkgs.foot}/bin/footclient --title termfilechooser ${pkgs.yazi}/bin/yazi "$@"
+      ${pkgs.foot}/bin/footclient --title termfilechooser ${config.programs.yazi.finalPackage}/bin/yazi "$@"
 
       if [ "$directory" = "1" ]; then
           if [ ! -s "$out" ] && [ -s "$out"".1" ]; then
