@@ -1,0 +1,33 @@
+id = "charname/language-tools"
+name = "Language Tools"
+version = "2.0.0"
+plugin_api = 3
+author = "charname"
+license = "MIT"
+icon = "language"
+description = "OCR, Japanese readings, speech, and translation in the launcher"
+tags = ["launcher", "ocr", "speech", "translation", "productivity"]
+
+[[launcher_provider]]
+id = "translate"
+entry = "translate.luau"
+prefix = "tr"
+glyph = "language"
+include_in_global_search = false
+debounce_ms = 350
+
+[[launcher_provider]]
+id = "ocr"
+entry = "ocr.luau"
+prefix = "ocr"
+glyph = "text-scan-2"
+include_in_global_search = false
+debounce_ms = 0
+
+[[launcher_provider]]
+id = "clipboard"
+entry = "clipboard.luau"
+prefix = "lang"
+glyph = "language"
+include_in_global_search = true
+debounce_ms = 100

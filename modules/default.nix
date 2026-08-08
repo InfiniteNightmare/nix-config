@@ -19,6 +19,7 @@ let
 in
 {
   imports = [
+    ./language-tools
     ./editor
     ./fcitx5
     ./llm-agents

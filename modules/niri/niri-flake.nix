@@ -326,10 +326,7 @@ in
     binds = {
       # Noctalia keybinds
       "Alt+Space" = {
-        action.spawn = noctaliaMsg [
-          "panel-toggle"
-          "launcher"
-        ];
+        action.spawn = "language-tools launcher";
         hotkey-overlay.title = "Application Launcher";
       };
       "Alt+C" = {

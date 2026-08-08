@@ -36,7 +36,7 @@ in
         screen_time_enabled = false;
         shared_gl_context = true;
         clipboard_auto_paste = "auto";
-        clipboard_image_action_command = "";
+        clipboard_image_action_command = "language-tools prepare-ocr-path {path}";
 
         animation = {
           enabled = true;

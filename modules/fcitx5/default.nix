@@ -11,7 +11,7 @@
       # needed enable rime using configtool after installed
       qt6Packages.fcitx5-configtool
       qt6Packages.fcitx5-chinese-addons
-      # fcitx5-mozc    # japanese input method
+      fcitx5-mozc # Japanese input method
       fcitx5-gtk # gtk im module
     ];
     fcitx5.settings = {
@@ -28,6 +28,10 @@
         };
         "Groups/0/Items/1" = {
           Name = "shuangpin";
+          Layout = null;
+        };
+        "Groups/0/Items/2" = {
+          Name = "mozc";
           Layout = null;
         };
       };
