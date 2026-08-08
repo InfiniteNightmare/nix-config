@@ -131,20 +131,16 @@ translate_text() {
     | timeout 15 trans -engine bing -brief -no-ansi -s auto -t "$target"
 }
 
-launcher() {
+inspect() {
   ensure_cache_dir
   minimax-client prune >/dev/null 2>&1 || true
-  if test "$(inspect_clipboard)" = image; then
-    exec "@NOCTALIA@" msg panel-toggle launcher "/ocr run"
-  fi
-  exec "@NOCTALIA@" msg panel-toggle launcher
+  inspect_clipboard
 }
 
 action="${1:-inspect}"
 shift || true
 case "$action" in
-  inspect) inspect_clipboard ;;
-  launcher) launcher ;;
+  inspect) inspect ;;
   ocr-clipboard) ocr_clipboard ;;
   ocr-path) ocr_path "$@" ;;
   prepare-ocr-path) prepare_ocr_path "$@" ;;

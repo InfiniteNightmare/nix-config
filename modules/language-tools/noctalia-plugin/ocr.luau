@@ -110,6 +110,29 @@ local function parseResult(output)
   return fields
 end
 
+local function detectClipboardImage(queryText)
+  generation += 1
+  local requestGeneration = generation
+  activeQuery = queryText
+  launcher.setResults(queryText, {})
+
+  local accepted = noctalia.runAsync("language-tools inspect", function(result)
+    if requestGeneration ~= generation or queryText ~= activeQuery then
+      return
+    end
+
+    if result.exitCode == 0 and trim(result.stdout or "") == "image" then
+      resultRows(queryText, true)
+    else
+      launcher.setResults(queryText, {})
+    end
+  end, 3000)
+
+  if not accepted then
+    launcher.setResults(queryText, {})
+  end
+end
+
 local function startOcr(queryText, command)
   generation += 1
   local requestGeneration = generation
@@ -168,9 +191,7 @@ end
 
 function onQuery(queryText)
   if queryText == "" then
-    generation += 1
-    activeQuery = queryText
-    resultRows(queryText, true)
+    detectClipboardImage(queryText)
     return
   end
 

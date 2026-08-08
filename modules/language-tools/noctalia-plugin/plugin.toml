@@ -21,7 +21,7 @@ id = "ocr"
 entry = "ocr.luau"
 prefix = "ocr"
 glyph = "text-scan-2"
-include_in_global_search = false
+include_in_global_search = true
 debounce_ms = 0
 
 [[launcher_provider]]
