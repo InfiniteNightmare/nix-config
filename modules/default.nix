@@ -172,6 +172,8 @@ in
 
     localsend
     freerdp
+    remmina
+    rustdesk
     # deskflow
 
     waveterm
@@ -195,6 +197,7 @@ in
     wpsoffice-cn
     drawio
 
+    qq
     wechat
     wemeet
 
