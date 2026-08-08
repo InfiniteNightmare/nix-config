@@ -7,6 +7,7 @@ in
     opencode
     claude-code
     codex
+    qoder-cli
     rtk
     herdr
     agent-deck
