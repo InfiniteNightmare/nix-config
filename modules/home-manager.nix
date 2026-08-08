@@ -19,13 +19,22 @@
     users.${userName} = {
       imports = [
         ./default.nix
+        ./dingtalk
         inputs.agenix.homeManagerModules.default
         inputs.stylix.homeModules.stylix
         inputs.zen-browser.homeModules.default
         inputs.noctalia.homeModules.default
       ];
 
-      nixpkgs.config.allowUnfree = true;
+      nixpkgs = {
+        config = {
+          allowUnfree = true;
+          # Required by NUR's DingTalk package. The dingtalk module asserts that
+          # this exception becomes stale when the package stops using OpenSSL 1.1.
+          permittedInsecurePackages = [ "openssl-1.1.1w" ];
+        };
+        overlays = [ inputs.nur.overlays.default ];
+      };
     };
   };
 }
