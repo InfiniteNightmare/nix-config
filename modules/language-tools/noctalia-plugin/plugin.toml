@@ -1,6 +1,6 @@
 id = "charname/language-tools"
 name = "Language Tools"
-version = "2.0.0"
+version = "2.0.1"
 plugin_api = 3
 author = "charname"
 license = "MIT"
@@ -21,13 +21,13 @@ id = "ocr"
 entry = "ocr.luau"
 prefix = "ocr"
 glyph = "text-scan-2"
-include_in_global_search = true
+include_in_global_search = false
 debounce_ms = 0
 
 [[launcher_provider]]
 id = "clipboard"
 entry = "clipboard.luau"
-prefix = "lang"
+prefix = ""
 glyph = "language"
-include_in_global_search = true
-debounce_ms = 100
+include_in_global_search = false
+debounce_ms = 0

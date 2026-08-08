@@ -110,6 +110,10 @@ speak() {
 clipboard_provider() {
   kind="$(inspect_clipboard)"
   case "$kind" in
+    image)
+      printf 'image\037\n'
+      return
+      ;;
     japanese-text | text) ;;
     *) return 1 ;;
   esac

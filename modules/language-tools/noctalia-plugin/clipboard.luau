@@ -18,7 +18,16 @@ end
 
 local function snapshotRows(queryText)
   local results = {}
-  if translatedText ~= "" then
+  if clipboardKind == "image" then
+    table.insert(results, {
+      id = "ocr",
+      title = "识别当前剪贴板图片",
+      subtitle = "MiniMax M3 · 原文与简体中文，日文附整段读音",
+      glyph = "text-scan-2",
+      query = "/ocr run",
+      score = 120,
+    })
+  elseif translatedText ~= "" then
     table.insert(results, {
       id = "copy-translation",
       title = translatedText,
@@ -127,7 +136,7 @@ local function loadClipboard(queryText)
       return
     end
 
-    local output = trim(result.stdout or "")
+    local output = (result.stdout or ""):gsub("[\r\n]+$", "")
     local splitAt = string.find(output, separator, 1, true)
     if splitAt == nil then
       launcher.setResults(queryText, {})
@@ -145,27 +154,6 @@ local function loadClipboard(queryText)
 end
 
 function onQuery(queryText)
-  if queryText == "translate" or queryText:match("^translate%-retry%-%d+$") then
-    if clipboardText == "" then
-      launcher.setResults(queryText, {
-        {
-          id = "missing",
-          title = "剪贴板中没有可翻译的文字",
-          glyph = "alert-circle",
-        },
-      })
-      return
-    end
-    publishTranslation(queryText)
-    return
-  end
-
-  if queryText == "view" then
-    generation += 1
-    snapshotRows(queryText)
-    return
-  end
-
   if queryText ~= "" then
     generation += 1
     launcher.setResults(queryText, {})
@@ -177,14 +165,16 @@ end
 
 function onActivate(id)
   if id == "translate" then
-    launcher.setQuery("translate")
+    launcher.setQuery("")
+    publishTranslation("")
   elseif id == "translate-again" or id == "retry" then
-    launcher.setQuery("translate-retry-" .. tostring(generation))
+    launcher.setQuery("")
+    publishTranslation("")
   elseif id == "copy-translation" and translatedText ~= "" then
-    launcher.setQuery("view")
+    launcher.setQuery("")
     noctalia.copyToClipboard(translatedText, "text/plain")
   elseif id == "speak" and clipboardText ~= "" then
-    launcher.setQuery("view")
+    launcher.setQuery("")
     local command = "printf %s " .. shellQuote(clipboardText) .. " | language-tools speak"
     noctalia.runAsync(command)
   end
