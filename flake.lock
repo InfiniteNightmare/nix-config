@@ -553,11 +553,11 @@
         "nixpkgs": "nixpkgs_5"
       },
       "locked": {
-        "lastModified": 1786443521,
-        "narHash": "sha256-TYxHDEtn60BdSdNHMtdNlbm7NVl97PZ5y9JWAKxJVQQ=",
+        "lastModified": 1786455567,
+        "narHash": "sha256-2fxTK3qRRE6mIfTlACTqhXPCny+0dAdyQyO0NVZ2b8A=",
         "owner": "noctalia-dev",
         "repo": "noctalia-shell",
-        "rev": "9f32d166f81f52800eda16a5997c1b373a3a6075",
+        "rev": "e93ae63ec3f1dd7dfd50956877b68e8757b8dfa8",
         "type": "github"
       },
       "original": {
