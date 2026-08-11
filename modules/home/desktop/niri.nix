@@ -153,7 +153,6 @@ in
       { argv = [ "xwayland-satellite" ]; }
       { sh = "udiskie -s"; }
       { sh = "foot --server"; }
-      { sh = "keepassxc --minimized"; }
       # {
       # sh = ''mpvpaper -p -n 600 -o "--shuffle --no-audio --hwdec=auto-safe --vf=fps=30 --panscan=1.0" eDP-1 /data/Videos'';
       # }

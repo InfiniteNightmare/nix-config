@@ -61,10 +61,7 @@
             ChaiziEnabled = "True";
             ExtBEnabled = "True";
             StrokeCandidateEnabled = "True";
-            CloudPinyinEnabled = "True";
-            CloudPinyinIndex = 2;
-            CloudPinyinAnimation = "True";
-            KeepCloudPinyinPlaceHolder = "False";
+            CloudPinyinEnabled = "False";
             PreeditMode = "Composing pinyin";
             PreeditCursorPositionAtBeginning = "True";
             PinyinInPreedit = "True";
