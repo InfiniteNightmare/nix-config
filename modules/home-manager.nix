@@ -1,5 +1,4 @@
 {
-  config,
   inputs,
   userName,
   ...
@@ -15,7 +14,6 @@
     useUserPackages = true;
     extraSpecialArgs = {
       inherit inputs userName;
-      minimaxEnvFile = config.age.secrets.minimax-env.path;
     };
 
     users.${userName} = {

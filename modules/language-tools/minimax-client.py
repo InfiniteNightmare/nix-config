@@ -15,7 +15,7 @@ import urllib.request
 from pathlib import Path
 
 
-ENV_FILE = Path("@MINIMAX_ENV_FILE@")
+ENV_FILE = Path(os.path.expandvars("@MINIMAX_ENV_FILE@"))
 SYSTEM_CA_BUNDLE = Path("/etc/ssl/certs/ca-bundle.crt")
 OCR_MODEL = "MiniMax-M3"
 OCR_MAX_IMAGE_BYTES = 10 * 1024 * 1024
@@ -113,6 +113,8 @@ def api_key(environment: dict[str, str]) -> str:
         ),
     )
     if not key:
+        if not ENV_FILE.is_file():
+            raise ClientError(f"MiniMax 密钥文件不存在或尚未解密: {ENV_FILE}")
         raise ClientError("密钥文件中没有可用的 MiniMax API Key")
     return key
 

@@ -10,10 +10,4 @@
     file = ./webdav-password.age;
   };
 
-  # MiniMax API key (environment-file format: KEY=VALUE).
-  age.secrets.minimax-env = {
-    file = ./minimax-env.age;
-    owner = userName;
-  };
-
 }

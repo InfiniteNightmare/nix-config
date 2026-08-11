@@ -1,13 +1,13 @@
 {
   config,
   lib,
-  minimaxEnvFile,
   pkgs,
   ...
 }:
 
 let
   noctalia = lib.getExe config.programs.noctalia.package;
+  minimaxEnvFile = config.age.secrets.minimax-env.path;
 
   minimaxClientSource = builtins.replaceStrings [ "@MINIMAX_ENV_FILE@" ] [ minimaxEnvFile ] (
     builtins.readFile ./minimax-client.py
@@ -37,6 +37,14 @@ let
   };
 in
 {
+  # This credential is only consumed by user-session tools. Decrypt it after
+  # /home is mounted so the user's SSH identity is available across reboots.
+  age.identityPaths = lib.mkDefault [ "${config.home.homeDirectory}/.ssh/id_ed25519" ];
+  age.secrets.minimax-env = {
+    file = ../../secrets/minimax-env.age;
+    mode = "0400";
+  };
+
   # Niri and Noctalia are long-lived, so keep one stable user-level command path
   # while Home Manager changes the immutable package behind it.
   home.file.".local/bin/language-tools".source = "${languageTools}/bin/language-tools";
