@@ -112,8 +112,6 @@ in
 
     udiskie
 
-    sshpass
-
     # browser
     # (microsoft-edge.override { commandLineArgs = [ "--enable-wayland-ime" ]; })
 
