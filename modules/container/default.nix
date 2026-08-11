@@ -1,9 +1,10 @@
 { pkgs, ... }:
 {
-  # Enable common container config files in /etc/containers
-  virtualisation.oci-containers.backend = "podman";
-  virtualisation.containers.enable = true;
   virtualisation = {
+    # Enable common container config files in /etc/containers
+    oci-containers.backend = "podman";
+    containers.enable = true;
+
     podman = {
       enable = true;
 

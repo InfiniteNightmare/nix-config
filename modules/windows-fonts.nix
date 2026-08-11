@@ -108,7 +108,7 @@ in
 
     fileSystems."${cfg.mountPoint}" = {
       device = devicePath;
-      fsType = cfg.fsType;
+      inherit (cfg) fsType;
       options =
         baseMountOptions
         ++ lib.optional cfg.allowFail "nofail"

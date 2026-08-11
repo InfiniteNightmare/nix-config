@@ -11,6 +11,7 @@
 
 let
   niriPackage = inputs.niri.packages.${pkgs.stdenv.hostPlatform.system}.niri-unstable;
+  proxySettings = import ../../modules/proxy/settings.nix;
 in
 {
   imports = [
@@ -20,7 +21,6 @@ in
     ../../modules/boot-cleanup.nix
     ../../modules/filesystems/webdav.nix
     ../../modules/container
-    ../../modules/btrfs-snapshots
     ../../modules/zju-connect
     inputs.agenix.nixosModules.default
   ];
@@ -58,88 +58,49 @@ in
     allowFail = true;
   };
 
-  networking.hostName = "nixos";
-
-  networking.networkmanager = {
-    enable = true;
-    ensureProfiles.profiles.wired-10-214-104 = {
-      connection = {
-        id = "wired-10-214-104";
-        type = "ethernet";
-        interface-name = "enp2s0";
-        autoconnect = true;
-        autoconnect-priority = 100;
+  networking = {
+    hostName = "nixos";
+    networkmanager = {
+      enable = true;
+      ensureProfiles.profiles.wired-10-214-104 = {
+        connection = {
+          id = "wired-10-214-104";
+          type = "ethernet";
+          interface-name = "enp2s0";
+          autoconnect = true;
+          autoconnect-priority = 100;
+        };
+        ipv4 = {
+          method = "manual";
+          addresses = "10.214.104.3/24";
+          gateway = "10.214.104.1";
+          dns = "10.10.0.21";
+          dns-priority = -50;
+          route-metric = 100;
+          never-default = false;
+        };
+        ipv6.method = "disabled";
       };
-      ipv4 = {
-        method = "manual";
-        addresses = "10.214.104.3/24";
-        gateway = "10.214.104.1";
-        dns = "10.10.0.21";
-        dns-priority = -50;
-        route-metric = 100;
-        never-default = false;
-      };
-      ipv6.method = "disabled";
+    };
+    proxy = proxySettings;
+    firewall = {
+      allowedTCPPorts = [
+        22000
+        53317
+      ];
+      allowedUDPPorts = [
+        22000
+        21027
+        53317
+      ];
     };
   };
-  networking.proxy = {
-    httpProxy = "http://127.0.0.1:7890";
-    httpsProxy = "http://127.0.0.1:7890";
-    allProxy = "socks5://127.0.0.1:7890";
-    noProxy = "localhost,127.0.0.1,::1,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16";
-  };
-  networking.firewall.allowedTCPPorts = [
-    3025
-    8384
-    22000
-    53317
-  ];
-  networking.firewall.allowedUDPPorts = [
-    22000
-    21027
-  ];
 
   time.timeZone = "Asia/Shanghai";
 
-  services.xserver = {
-    xkb = {
-      layout = "us";
-      variant = "";
-    };
-  };
-
-  services.greetd = {
-    enable = true;
-    settings = {
-      default_session = {
-        command = "${niriPackage}/bin/niri-session";
-        user = userName;
-      };
-    };
-  };
-
-  security.rtkit.enable = true;
-
-  services.pipewire = {
-    enable = true;
-    alsa.enable = true;
-    alsa.support32Bit = true;
-    pulse.enable = true;
-    jack.enable = true;
-
-    wireplumber.extraConfig.bluetoothEnhancements = {
-      "monitor.bluez.properties" = {
-        "bluez5.enable-sbc-xq" = true;
-        "bluez5.enable-msbc" = true;
-        "bluez5.enable-hw-volume" = true;
-        "bluez5.roles" = [
-          "hsp_hs"
-          "hsp_ag"
-          "hfp_hf"
-          "hfp_ag"
-        ];
-      };
-    };
+  security = {
+    rtkit.enable = true;
+    polkit.enable = true;
   };
 
   systemd.services.micGainFix = {
@@ -159,8 +120,6 @@ in
     "+${pkgs.coreutils}/bin/rm -f /run/avahi-daemon/pid";
 
   # services.blueman.enable = true;
-
-  programs.fish.enable = true;
 
   users.users.${userName} = {
     isNormalUser = true;
@@ -200,53 +159,37 @@ in
     options = "--delete-older-than 7d";
   };
 
-  programs.nixosCleanSwitch = {
-    enable = true;
-    flake = "/home/${userName}/nix-config";
-    host = "thinkbook";
+  environment = {
+    systemPackages = with pkgs; [
+      vim
+      git
+      wget
+      curl
+      helix
+      age
+      ragenix
+      system-config-printer
+      nodejs
+    ];
+    variables = {
+      EDITOR = "hx";
+      QT_IM_MODULE = "fcitx";
+      XMODIFIERS = "@im=fcitx";
+      SDL_IM_MODULE = "fcitx";
+      INPUT_METHOD = "fcitx";
+      GLFW_IM_MODULE = "ibus";
+    };
+    shells = [ pkgs.fish ];
+    sessionVariables.NIXOS_OZONE_WL = "1";
   };
-
-  services.zjuConnect = {
-    installCli = true;
-
-    # Enable after adding an agenix secret for the account password.
-    # enable = true;
-    # username = "your-zju-account";
-    # passwordSecret = "zju-connect-password";
-    # protocol = "easyconnect";
-    # socksBind = "127.0.0.1:1080";
-    # httpBind = "127.0.0.1:1081";
-
-    # For aTrust, persist client state to avoid repeated verification.
-    # protocol = "atrust";
-    # clientDataFile = "/var/lib/zju-connect/client_data.json";
-  };
-
-  environment.systemPackages = with pkgs; [
-    vim
-    git
-    wget
-    curl
-    helix
-    age
-    ragenix
-    system-config-printer
-    nodejs
-  ];
-
-  environment.variables = {
-    EDITOR = "hx";
-    QT_IM_MODULE = "fcitx";
-    XMODIFIERS = "@im=fcitx";
-    SDL_IM_MODULE = "fcitx";
-    INPUT_METHOD = "fcitx";
-    GLFW_IM_MODULE = "ibus";
-  };
-
-  environment.shells = [ pkgs.fish ];
-  environment.sessionVariables.NIXOS_OZONE_WL = "1";
 
   programs = {
+    fish.enable = true;
+    nixosCleanSwitch = {
+      enable = true;
+      flake = "/home/${userName}/nix-config";
+      host = "thinkbook";
+    };
     clash-verge = {
       enable = true;
       autoStart = true;
@@ -262,7 +205,6 @@ in
     steam = {
       enable = true;
       remotePlay.openFirewall = true;
-      dedicatedServer.openFirewall = true;
     };
   };
 
@@ -271,8 +213,53 @@ in
     enable32Bit = true;
   };
 
-  security.polkit.enable = true;
   services = {
+    zjuConnect = {
+      installCli = true;
+
+      # Enable after adding an agenix secret for the account password.
+      # enable = true;
+      # username = "your-zju-account";
+      # passwordSecret = "zju-connect-password";
+      # protocol = "easyconnect";
+      # socksBind = "127.0.0.1:1080";
+      # httpBind = "127.0.0.1:1081";
+
+      # For aTrust, persist client state to avoid repeated verification.
+      # protocol = "atrust";
+      # clientDataFile = "/var/lib/zju-connect/client_data.json";
+    };
+    xserver.xkb = {
+      layout = "us";
+      variant = "";
+    };
+    greetd = {
+      enable = true;
+      settings.default_session = {
+        command = "${niriPackage}/bin/niri-session";
+        user = userName;
+      };
+    };
+    pipewire = {
+      enable = true;
+      alsa.enable = true;
+      alsa.support32Bit = true;
+      pulse.enable = true;
+      jack.enable = true;
+      wireplumber.extraConfig.bluetoothEnhancements = {
+        "monitor.bluez.properties" = {
+          "bluez5.enable-sbc-xq" = true;
+          "bluez5.enable-msbc" = true;
+          "bluez5.enable-hw-volume" = true;
+          "bluez5.roles" = [
+            "hsp_hs"
+            "hsp_ag"
+            "hfp_hf"
+            "hfp_ag"
+          ];
+        };
+      };
+    };
     geoclue2.enable = true;
     upower.enable = true;
     # power-profiles-daemon.enable = true;
@@ -284,7 +271,6 @@ in
       enable = true;
       drivers = with pkgs; [
         gutenprint
-        hplip
         hplipWithPlugin
       ];
     };
@@ -372,80 +358,6 @@ in
       "wlr"
       "gtk"
     ];
-  };
-
-  # ============================================
-  # Btrfs 自动快照配置
-  # ============================================
-  services.btrfsSnapshots = {
-    # Disabled until the snapshot layout and retention policy are redesigned.
-    enable = false;
-
-    # 在 NixOS rebuild 时创建快照（配置切换前）
-    snapshotOnRebuild = true;
-
-    # 在系统启动时创建快照
-    snapshotOnBoot = true;
-
-    # 定时快照配置
-    timeline = {
-      enable = true;
-      limits = {
-        hourly = 24; # 保留 24 小时的快照
-        daily = 7; # 保留 7 天的每日快照
-        weekly = 4; # 保留 4 周的每周快照
-        monthly = 6; # 保留 6 个月的每月快照
-        yearly = 2; # 保留 2 年的每年快照
-      };
-    };
-
-    # 配置要快照的 subvolume
-    configs = {
-      # 根分区快照 - 保护系统文件和配置
-      root = {
-        subvolume = "/";
-      };
-
-      # Home 分区快照 - 保护用户数据（最重要）
-      home = {
-        subvolume = "/home";
-      };
-
-      # Data 分区快照 - 保护额外数据
-      data = {
-        subvolume = "/data";
-      };
-
-      # 注意：/nix 不需要快照，因为可以通过 NixOS 配置重建
-      # /boot 也不需要，因为它不是 btrfs 文件系统
-    };
-  };
-
-  # ============================================
-  # NAS 备份配置（btrbk 增量同步到 btrfs NAS）
-  # ============================================
-  services.btrfsNasBackup = {
-    # Disabled with local snapshots; the current btrbk unit cannot read its SSH key.
-    enable = false;
-
-    # NAS 配置
-    nasHost = "10.214.131.20";
-    nasPort = 2222;
-    nasUser = userName;
-    sshKeyFile = "/home/${userName}/.ssh/id_ed25519";
-    backupBasePath = "/vol2/1001/snapshots";
-
-    # 备份计划
-    schedule = "daily"; # 每天备份
-
-    # 要备份的 volume（使用默认配置：home, root, data）
-    # volumes 已经有默认值，无需重复配置
-
-    # 保留策略
-    retention = {
-      snapshot = "14d 4w"; # 本地快照：14天 + 4周
-      target = "30d 12w 12m 2y"; # NAS 备份：30天 + 12周 + 12月 + 2年
-    };
   };
 
   system.stateVersion = "25.05";

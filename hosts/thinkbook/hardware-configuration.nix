@@ -13,66 +13,71 @@
     (modulesPath + "/installer/scan/not-detected.nix")
   ];
 
-  boot.initrd.availableKernelModules = [
-    "nvme"
-    "xhci_pci"
-    "thunderbolt"
-    "usbhid"
-    "usb_storage"
-    "uas"
-    "sd_mod"
-    "sdhci_pci"
-    "ntfs3"
-  ];
-  boot.initrd.kernelModules = [ ];
-  boot.kernelModules = [ "kvm-amd" ];
-  boot.extraModulePackages = [ ];
-
-  fileSystems."/" = {
-    device = "/dev/disk/by-uuid/3ddc29ee-0df8-4376-a305-392fac6231e9";
-    fsType = "btrfs";
-    options = [
-      "subvol=@"
-      "compress=zstd"
-    ];
+  boot = {
+    initrd = {
+      availableKernelModules = [
+        "nvme"
+        "xhci_pci"
+        "thunderbolt"
+        "usbhid"
+        "usb_storage"
+        "uas"
+        "sd_mod"
+        "sdhci_pci"
+      ];
+      kernelModules = [ ];
+    };
+    kernelModules = [ "kvm-amd" ];
+    extraModulePackages = [ ];
   };
 
-  fileSystems."/home" = {
-    device = "/dev/disk/by-uuid/3ddc29ee-0df8-4376-a305-392fac6231e9";
-    fsType = "btrfs";
-    options = [
-      "subvol=@home"
-      "compress=zstd"
-    ];
-  };
+  fileSystems = {
+    "/" = {
+      device = "/dev/disk/by-uuid/3ddc29ee-0df8-4376-a305-392fac6231e9";
+      fsType = "btrfs";
+      options = [
+        "subvol=@"
+        "compress=zstd"
+      ];
+    };
 
-  fileSystems."/nix" = {
-    device = "/dev/disk/by-uuid/3ddc29ee-0df8-4376-a305-392fac6231e9";
-    fsType = "btrfs";
-    options = [
-      "subvol=@nix"
-      "noatime"
-      "compress=zstd"
-    ];
-  };
+    "/home" = {
+      device = "/dev/disk/by-uuid/3ddc29ee-0df8-4376-a305-392fac6231e9";
+      fsType = "btrfs";
+      options = [
+        "subvol=@home"
+        "compress=zstd"
+      ];
+    };
 
-  fileSystems."/data" = {
-    device = "/dev/disk/by-uuid/990f90b6-0487-4379-b294-eb9327838c87";
-    fsType = "btrfs";
-    options = [
-      "subvol=@data"
-      "noatime"
-      "compress=zstd"
-    ];
-  };
+    "/nix" = {
+      device = "/dev/disk/by-uuid/3ddc29ee-0df8-4376-a305-392fac6231e9";
+      fsType = "btrfs";
+      options = [
+        "subvol=@nix"
+        "noatime"
+        "compress=zstd"
+      ];
+    };
 
-  fileSystems."/boot" = {
-    device = "/dev/disk/by-uuid/B0BA-0BA8";
-    fsType = "vfat";
-    options = [
-      "fmask=0022"
-      "dmask=0022"
-    ];
+    "/data" = {
+      device = "/dev/disk/by-uuid/990f90b6-0487-4379-b294-eb9327838c87";
+      fsType = "btrfs";
+      options = [
+        "subvol=@data"
+        "noatime"
+        "compress=zstd"
+      ];
+    };
+
+    "/boot" = {
+      device = "/dev/disk/by-uuid/B0BA-0BA8";
+      fsType = "vfat";
+      options = [
+        "fmask=0022"
+        "dmask=0022"
+      ];
+    };
   };
 
   swapDevices = [
