@@ -5,6 +5,7 @@
   ...
 }:
 let
+  proxySettings = import ./settings.nix;
   profileScript = "${config.home.homeDirectory}/.local/share/io.github.clash-verge-rev.clash-verge-rev/profiles/sN9eG16QuHvB.js";
   backupScript = "${config.home.homeDirectory}/.config/proxy/ai-us-clash-enhance.js";
   renderClashProfile = pkgs.writeShellApplication {
@@ -66,7 +67,7 @@ in
       Description = "Render the Clash VPS profile after decrypting its credentials";
       Requires = [ "agenix.service" ];
       After = [ "agenix.service" ];
-      Before = [ "app-clash\\x2dverge@autostart.service" ];
+      PartOf = [ "agenix.service" ];
     };
     Service = {
       Type = "oneshot";
@@ -79,10 +80,10 @@ in
   home.file.".config/proxy/ai-us-terminal.sh" = {
     force = true;
     text = ''
-      export http_proxy="http://127.0.0.1:7890"
-      export https_proxy="http://127.0.0.1:7890"
-      export all_proxy="socks5h://127.0.0.1:7890"
-      export no_proxy="localhost,127.0.0.1,::1"
+      export http_proxy="${proxySettings.httpProxy}"
+      export https_proxy="${proxySettings.httpsProxy}"
+      export all_proxy="${proxySettings.allProxy}"
+      export no_proxy="${proxySettings.noProxy}"
 
       export HTTP_PROXY="$http_proxy"
       export HTTPS_PROXY="$https_proxy"

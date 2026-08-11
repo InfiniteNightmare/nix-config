@@ -1,4 +1,7 @@
-{ ... }:
+_:
+let
+  proxySettings = import ../../proxy/settings.nix;
+in
 {
   # Fish shell configuration separated from the generic shell module.
   # 主要内容：
@@ -26,10 +29,10 @@
 
       # 代理控制函数与智能启用
       function __proxy_on --description 'Enable local proxy'
-        set -gx http_proxy  http://127.0.0.1:7890
-        set -gx https_proxy http://127.0.0.1:7890
-        set -gx all_proxy   socks5h://127.0.0.1:7890
-        set -gx no_proxy localhost,127.0.0.1,::1
+        set -gx http_proxy  ${proxySettings.httpProxy}
+        set -gx https_proxy ${proxySettings.httpsProxy}
+        set -gx all_proxy   ${proxySettings.allProxy}
+        set -gx no_proxy    ${proxySettings.noProxy}
 
         set -gx HTTP_PROXY $http_proxy
         set -gx HTTPS_PROXY $https_proxy
@@ -71,15 +74,6 @@
             end
           case '*'
             echo "usage: proxy (on|off|toggle|status)"
-        end
-      end
-
-      # 如果本地端口开放则自动启用
-      if command -q nc
-        if nc -z 127.0.0.1 7890 >/dev/null 2>&1
-          if not set -q http_proxy
-            __proxy_on
-          end
         end
       end
 
