@@ -151,7 +151,8 @@ in
   nix.gc = {
     automatic = true;
     dates = "weekly";
-    options = "--delete-older-than 7d";
+    # System generations and their checkpoints are retired together by nixos-boot-clean.
+    options = "";
   };
 
   environment = {
@@ -184,6 +185,7 @@ in
       enable = true;
       flake = "/home/${userName}/nix-config";
       host = "thinkbook";
+      generationSnapshots.enable = true;
     };
     clash-verge = {
       enable = true;

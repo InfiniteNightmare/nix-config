@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
+export LC_ALL=C
 
 BOOT_MOUNT=${BOOT_MOUNT:-/boot}
 SYSTEM_PROFILE=${SYSTEM_PROFILE:-/nix/var/nix/profiles/system}
@@ -8,6 +9,8 @@ GC_OPTIONS=${GC_OPTIONS:-}
 MIN_FREE_MIB=${MIN_FREE_MIB:-16}
 CURRENT_SYSTEM=${CURRENT_SYSTEM:-/run/current-system}
 BOOTED_SYSTEM=${BOOTED_SYSTEM:-/run/booted-system}
+GENERATION_SNAPSHOT=${GENERATION_SNAPSHOT:-}
+LOCK_FILE=${NIXOS_CLEAN_SWITCH_LOCK_FILE:-/run/lock/nixos-clean-switch.lock}
 
 DRY_RUN=0
 FOR_SWITCH=0
@@ -83,6 +86,18 @@ if [[ ${EUID} -ne 0 && ${DRY_RUN} -eq 0 ]]; then
   die "run this as root, for example: sudo nixos-boot-clean --for-switch"
 fi
 
+if [[ ${NIXOS_CLEAN_SWITCH_LOCK_HELD:-0} != 1 && ! ( ${DRY_RUN} -eq 1 && ${EUID} -ne 0 ) ]]; then
+  install -d -m 0755 -- "${LOCK_FILE%/*}"
+  exec 9>"${LOCK_FILE}"
+  if ! flock -n 9; then
+    die "another nixos-clean-switch or generation cleanup is already running"
+  fi
+fi
+
+if [[ -n ${GENERATION_SNAPSHOT} && ! -x ${GENERATION_SNAPSHOT} ]]; then
+  die "generation snapshot helper is not executable: ${GENERATION_SNAPSHOT}"
+fi
+
 if ! [[ ${CONFIGURATION_LIMIT} =~ ^[0-9]+$ ]] || (( CONFIGURATION_LIMIT < 1 )); then
   die "CONFIGURATION_LIMIT must be a positive integer"
 fi
@@ -95,7 +110,25 @@ KERNEL_DIR="${BOOT_MOUNT%/}/kernels"
 MIN_FREE_BYTES=$((MIN_FREE_MIB * 1024 * 1024))
 TARGET_KEEP=${CONFIGURATION_LIMIT}
 declare -a RUNTIME_SYSTEMS=()
+declare -a KERNEL_FILES=()
 declare -A RUNTIME_BOOT_FILES=()
+declare -A GENERATIONS_SELECTED_FOR_DELETION=()
+declare -A PROFILE_BOOT_FILES=()
+PROFILE_BOOT_MAPPING_READY=0
+
+load_kernel_files() {
+  local file find_fd find_pid
+
+  KERNEL_FILES=()
+  [[ -d ${KERNEL_DIR} ]] || return 0
+  exec {find_fd}< <(find "${KERNEL_DIR}" -maxdepth 1 -type f -print0)
+  find_pid=$!
+  while IFS= read -r -d '' file <&"${find_fd}"; do
+    KERNEL_FILES+=("${file}")
+  done
+  exec {find_fd}<&-
+  wait "${find_pid}" || die "cannot enumerate ${KERNEL_DIR}; refusing boot file cleanup"
+}
 
 load_runtime_systems() {
   local link target existing duplicate
@@ -136,12 +169,12 @@ collect_runtime_boot_files() {
       [[ -e ${runtime_file} ]] || continue
 
       matched=0
-      while IFS= read -r -d '' file; do
+      for file in "${KERNEL_FILES[@]}"; do
         if cmp -s -- "${runtime_file}" "${file}"; then
           RUNTIME_BOOT_FILES["${file}"]=1
           matched=1
         fi
-      done < <(find "${KERNEL_DIR}" -maxdepth 1 -type f -print0)
+      done
 
       if (( ! matched )); then
         die "cannot map ${runtime_file} to ${KERNEL_DIR}; refusing cleanup"
@@ -151,7 +184,7 @@ collect_runtime_boot_files() {
 }
 
 calculate_target_keep() {
-  local boot_size boot_used boot_avail kernel_bytes other_bytes unit_bytes usable fit
+  local boot_size boot_used kernel_bytes other_bytes unit_bytes usable fit
   local kernel_size=0
   local initrd_size=0
 
@@ -161,7 +194,7 @@ calculate_target_keep() {
     return
   fi
 
-  read -r boot_size boot_used boot_avail < <(df -B1 --output=size,used,avail "${BOOT_MOUNT}" | awk 'NR == 2 { print $1, $2, $3 }')
+  read -r boot_size boot_used < <(df -B1 --output=size,used "${BOOT_MOUNT}" | awk 'NR == 2 { print $1, $2 }')
 
   kernel_bytes=0
   if [[ -d ${KERNEL_DIR} ]]; then
@@ -214,11 +247,13 @@ calculate_target_keep() {
 trim_system_generations() {
   local -a generations=()
   local -a delete_generations=()
-  local current_generation=""
+  local current_generation="" current_link current_name
   local generations_output
   local line gen protect_from i runtime gen_link candidate target matched
   local -a candidates=()
   declare -A protected=()
+
+  GENERATIONS_SELECTED_FOR_DELETION=()
 
   if [[ ! -e ${SYSTEM_PROFILE} ]]; then
     log "${SYSTEM_PROFILE} does not exist; skipping system generation cleanup"
@@ -238,10 +273,15 @@ trim_system_generations() {
     read -r gen _ <<<"${line}"
     [[ ${gen} =~ ^[0-9]+$ ]] || continue
     generations+=("${gen}")
-    if [[ ${line} == *current* ]]; then
-      current_generation=${gen}
-    fi
   done <<<"${generations_output}"
+
+  current_link=$(readlink -- "${SYSTEM_PROFILE}" 2>/dev/null || true)
+  current_name=${current_link##*/}
+  if [[ ${current_name} =~ ^system-([0-9]+)-link$ ]]; then
+    current_generation=${BASH_REMATCH[1]}
+  else
+    die "cannot parse the current generation from ${SYSTEM_PROFILE}"
+  fi
 
   if (( ${#generations[@]} <= TARGET_KEEP )); then
     log "system profile already has ${#generations[@]} generation(s)"
@@ -288,6 +328,7 @@ trim_system_generations() {
   for gen in "${generations[@]}"; do
     if [[ -z ${protected[${gen}]+x} ]]; then
       delete_generations+=("${gen}")
+      GENERATIONS_SELECTED_FOR_DELETION["${gen}"]=1
     fi
   done
 
@@ -300,10 +341,72 @@ trim_system_generations() {
   run nix-env --delete-generations -p "${SYSTEM_PROFILE}" "${delete_generations[@]}"
 }
 
+collect_profile_boot_files() {
+  local generation_link name generation system candidate artifact system_file file matched
+  local saw_generation=0
+  local -a systems=()
+
+  PROFILE_BOOT_FILES=()
+  PROFILE_BOOT_MAPPING_READY=0
+
+  for generation_link in "${SYSTEM_PROFILE}"-*-link; do
+    [[ -L ${generation_link} ]] || continue
+    name=${generation_link##*/}
+    [[ ${name} =~ ^system-([0-9]+)-link$ ]] || continue
+    generation=${BASH_REMATCH[1]}
+    if (( DRY_RUN )) && [[ -n ${GENERATIONS_SELECTED_FOR_DELETION[${generation}]+x} ]]; then
+      continue
+    fi
+
+    system=$(readlink -e -- "${generation_link}") || {
+      log "warning: cannot resolve retained generation ${generation}; boot cleanup will fail closed"
+      return 0
+    }
+    systems=("${system}")
+    if [[ -d ${generation_link}/specialisation ]]; then
+      for candidate in "${generation_link}"/specialisation/*; do
+        [[ -e ${candidate} ]] || continue
+        system=$(readlink -e -- "${candidate}") || {
+          log "warning: cannot resolve a specialisation in generation ${generation}; boot cleanup will fail closed"
+          return 0
+        }
+        systems+=("${system}")
+      done
+    fi
+    saw_generation=1
+
+    for system in "${systems[@]}"; do
+      for artifact in kernel initrd; do
+        system_file="${system}/${artifact}"
+        [[ -e ${system_file} ]] || continue
+        matched=0
+        for file in "${KERNEL_FILES[@]}"; do
+          if cmp -s -- "${system_file}" "${file}"; then
+            PROFILE_BOOT_FILES["${file}"]=1
+            matched=1
+          fi
+        done
+        if (( ! matched )); then
+          log "warning: cannot map generation ${generation} ${artifact}; boot cleanup will fail closed"
+          return 0
+        fi
+      done
+    done
+  done
+
+  if (( ! saw_generation )); then
+    log "warning: no retained system generations were found; boot cleanup will fail closed"
+    return 0
+  fi
+  PROFILE_BOOT_MAPPING_READY=1
+}
+
 collect_protected_grub_files() {
   local grub_cfg="${BOOT_MOUNT%/}/grub/grub.cfg"
 
-  [[ -r ${grub_cfg} ]] || return
+  if [[ ! -r ${grub_cfg} ]]; then
+    return 0
+  fi
 
   awk -v limit="${TARGET_KEEP}" '
     /^menuentry "NixOS - Configuration / {
@@ -332,7 +435,9 @@ collect_protected_grub_files() {
 collect_protected_systemd_boot_files() {
   local entries_dir="${BOOT_MOUNT%/}/loader/entries"
 
-  [[ -d ${entries_dir} ]] || return
+  if [[ ! -d ${entries_dir} ]]; then
+    return 0
+  fi
 
   find "${entries_dir}" -maxdepth 1 -type f -name '*.conf' -printf '%T@ %p\n' \
     | sort -rn \
@@ -354,7 +459,7 @@ collect_protected_systemd_boot_files() {
 
 trim_boot_files() {
   local file rel
-  local protected_count=0
+  local parsed_boot_count=0
   local -a delete_files=()
   declare -A protected_files=()
 
@@ -363,10 +468,12 @@ trim_boot_files() {
     return
   fi
 
+  collect_profile_boot_files
+
   while IFS= read -r rel; do
     [[ -n ${rel} ]] || continue
     protected_files["${BOOT_MOUNT%/}/${rel}"]=1
-    protected_count=$((protected_count + 1))
+    parsed_boot_count=$((parsed_boot_count + 1))
   done < <(
     collect_protected_grub_files
     collect_protected_systemd_boot_files
@@ -375,18 +482,23 @@ trim_boot_files() {
   for file in "${!RUNTIME_BOOT_FILES[@]}"; do
     protected_files["${file}"]=1
   done
-  protected_count=${#protected_files[@]}
+  for file in "${!PROFILE_BOOT_FILES[@]}"; do
+    protected_files["${file}"]=1
+  done
 
-  while IFS= read -r -d '' file; do
+  for file in "${KERNEL_FILES[@]}"; do
     if [[ ${file} == *.tmp ]]; then
       delete_files+=("${file}")
-    elif (( protected_count > 0 )) && [[ -z ${protected_files[${file}]+x} ]]; then
+    elif (( PROFILE_BOOT_MAPPING_READY )) && [[ -z ${protected_files[${file}]+x} ]]; then
       delete_files+=("${file}")
     fi
-  done < <(find "${KERNEL_DIR}" -maxdepth 1 -type f -print0)
+  done
 
-  if (( protected_count == 0 )); then
-    log "could not parse protected boot files; only temporary files will be removed"
+  if (( parsed_boot_count == 0 )); then
+    log "boot menu files were not parsed; retained generation closures remain authoritative"
+  fi
+  if (( ! PROFILE_BOOT_MAPPING_READY )); then
+    log "could not map every retained generation; only temporary files will be removed"
   fi
 
   if (( ${#delete_files[@]} == 0 )); then
@@ -420,6 +532,7 @@ load_runtime_systems
 
 if (( ! GENERATIONS_ONLY )); then
   validate_boot_mount
+  load_kernel_files
   collect_runtime_boot_files
 fi
 
@@ -431,6 +544,12 @@ fi
 
 if (( ! BOOT_ONLY )); then
   trim_system_generations
+  if [[ -n ${GENERATION_SNAPSHOT} ]]; then
+    log "pruning managed snapshots whose system generations no longer exist"
+    if ! run "${GENERATION_SNAPSHOT}" prune "${SYSTEM_PROFILE}"; then
+      log "warning: managed snapshot pruning was incomplete; generations remain authoritative"
+    fi
+  fi
 fi
 
 if (( ! GENERATIONS_ONLY )); then

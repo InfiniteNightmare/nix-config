@@ -9,7 +9,7 @@ Run checks from the repository root:
 
 ```sh
 nix flake check
-nix build .#nixosConfigurations.thinkbook.config.system.build.toplevel
+nix build --no-link .#nixosConfigurations.thinkbook.config.system.build.toplevel
 ```
 
 Apply a verified configuration with the repository's cleanup wrapper:
@@ -18,9 +18,39 @@ Apply a verified configuration with the repository's cleanup wrapper:
 sudo nixos-clean-switch
 ```
 
-The wrapper validates the flake, switches to `.#thinkbook`, and trims old boot
-artifacts and system generations while preserving rollback and the booted
-generation.
+The wrapper builds `.#thinkbook` once without creating a `result` link, switches
+to that pre-built store path, and trims old boot artifacts and system
+generations while preserving rollback and the booted generation.
+
+Each NixOS generation gets one immutable Btrfs checkpoint containing read-only
+root and home snapshots in the top-level `@nixos-snapshots` subvolume. The
+wrapper seeds an older generation before first leaving it and records each new
+generation immediately after a successful switch. Managed sets use the exact
+system generation and store hash as their identity; a set is removed only after
+its matching system generation has been removed. Use `nixos-clean-switch` as
+the switch entry point so the two lifecycles remain paired. `/data` is
+intentionally excluded pending a verified backup and clean scrub.
+
+A checkpoint represents the mutable state when that generation was first
+adopted; it is not refreshed on later departures. This keeps the restore point
+immutable even if a generation is selected again without restoring its data.
+Changing `filesystemMount`/`storageSubvolume` or disabling generation
+checkpoints does not migrate the old managed namespace; prune or migrate it
+explicitly before that change.
+
+Choosing an older generation in GRUB rolls back the NixOS system closure only.
+Restoring mutable root or home data from a paired Btrfs set remains a separate,
+offline recovery operation; the wrapper never overwrites a live filesystem.
+The snapshots remain on the same disk and are recovery checkpoints, not
+backups. Root and home are captured moments apart rather than as a
+cross-subvolume transaction, so applications that require transactional
+consistency must be stopped before creating a checkpoint.
+
+After first enabling this mechanism, establish the initial managed checkpoint:
+
+```sh
+sudo nixos-generation-snapshot capture-current
+```
 
 ## Layout
 

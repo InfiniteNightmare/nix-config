@@ -9,14 +9,16 @@ Since this is a system configuration repo, "tests" are primarily build checks an
 ### Build Commands
 *   **Build System (Dry Run):** To verify a configuration compiles without applying it:
     ```bash
-    nix build .#nixosConfigurations.thinkbook.config.system.build.toplevel
+    nix build --no-link .#nixosConfigurations.thinkbook.config.system.build.toplevel
     ```
     *Replace `thinkbook` with the relevant hostname if working on a different host.*
 
 *   **Apply Configuration:** (Only if explicitly requested by user)
     ```bash
-    sudo nixos-rebuild switch --flake .#thinkbook
+    sudo nixos-clean-switch
     ```
+    This wrapper is the required switch entry point because it keeps Btrfs
+    immutable checkpoints paired with NixOS system generations.
 
 *   **Check Flake Integrity:**
     ```bash

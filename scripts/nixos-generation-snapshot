@@ -1,0 +1,693 @@
+#!/usr/bin/env bash
+set -euo pipefail
+export LC_ALL=C
+
+SNAPSHOT_FILESYSTEM_MOUNT=${SNAPSHOT_FILESYSTEM_MOUNT:-/}
+SNAPSHOT_STORAGE_SUBVOLUME=${SNAPSHOT_STORAGE_SUBVOLUME:-@nixos-snapshots}
+SNAPSHOT_MEMBERS=${SNAPSHOT_MEMBERS:-$'root\t@\nhome\t@home'}
+SYSTEM_PROFILE=${SYSTEM_PROFILE:-/nix/var/nix/profiles/system}
+LOCK_FILE=${SNAPSHOT_LOCK_FILE:-/run/lock/nixos-generation-snapshot.lock}
+
+declare -a MEMBER_NAMES=()
+declare -a MEMBER_SUBVOLUMES=()
+declare -a MANIFEST_NAMES=()
+declare -A MANIFEST_SOURCES=()
+declare -A MANIFEST_UUIDS=()
+
+MOUNT_DIR=""
+STORAGE_DIR=""
+STAGING_DIR=""
+MOUNTED=0
+
+GENERATION=""
+SYSTEM_PATH=""
+STORE_HASH=""
+SET_KEY=""
+
+MANIFEST_GENERATION=""
+MANIFEST_SYSTEM_PATH=""
+MANIFEST_STORE_HASH=""
+MANIFEST_SET_KEY=""
+CURRENT_PROFILE_GENERATION=""
+CURRENT_PROFILE_PATH=""
+
+usage() {
+  cat <<'EOF'
+Usage:
+  nixos-generation-snapshot create GENERATION SYSTEM_PATH
+  nixos-generation-snapshot capture-current
+  nixos-generation-snapshot verify-current
+  nixos-generation-snapshot prune [SYSTEM_PROFILE]
+  nixos-generation-snapshot list
+
+Create and prune read-only Btrfs snapshot sets associated with NixOS system
+profile generations. This command is normally called by nixos-clean-switch.
+EOF
+}
+
+log() {
+  printf 'nixos-generation-snapshot: %s\n' "$*"
+}
+
+warn() {
+  printf 'nixos-generation-snapshot: warning: %s\n' "$*" >&2
+}
+
+die() {
+  printf 'nixos-generation-snapshot: error: %s\n' "$*" >&2
+  exit 1
+}
+
+cleanup_staging() {
+  local name path
+
+  [[ -n ${STAGING_DIR} && -d ${STAGING_DIR} ]] || return 0
+
+  for name in "${MEMBER_NAMES[@]}"; do
+    path="${STAGING_DIR}/${name}"
+    if [[ -e ${path} || -L ${path} ]]; then
+      btrfs subvolume delete -- "${path}" >/dev/null 2>&1 || true
+    fi
+  done
+  rm -f -- "${STAGING_DIR}/.manifest.tmp" "${STAGING_DIR}/manifest.json" 2>/dev/null || true
+  rmdir -- "${STAGING_DIR}" 2>/dev/null || true
+}
+
+cleanup_mount() {
+  if (( MOUNTED )); then
+    umount -- "${MOUNT_DIR}" >/dev/null 2>&1 || true
+    MOUNTED=0
+  fi
+  if [[ -n ${MOUNT_DIR} ]]; then
+    rmdir -- "${MOUNT_DIR}" >/dev/null 2>&1 || true
+  fi
+}
+
+on_exit() {
+  local status=$?
+  trap - EXIT
+  cleanup_staging
+  cleanup_mount
+  exit "${status}"
+}
+
+trap on_exit EXIT
+
+validate_relative_subvolume() {
+  local value=$1 label=$2
+
+  relative_subvolume_is_safe "${value}" || die "${label} contains an unsafe relative path"
+}
+
+relative_subvolume_is_safe() {
+  local value=$1 component
+  local -a components=()
+
+  [[ -n ${value} && ${value} != /* ]] || return 1
+  [[ ${value} != *$'\n'* && ${value} != *$'\t'* ]] || return 1
+
+  IFS='/' read -r -a components <<<"${value}"
+  for component in "${components[@]}"; do
+    [[ -n ${component} && ${component} != . && ${component} != .. ]] || return 1
+  done
+  return 0
+}
+
+paths_overlap() {
+  local first=$1 second=$2
+
+  [[ ${first} == "${second}" || ${first} == "${second}/"* || ${second} == "${first}/"* ]]
+}
+
+load_members() {
+  local name subvolume extra existing
+  declare -A seen_names=()
+  declare -A seen_subvolumes=()
+
+  while IFS=$'\t' read -r name subvolume extra; do
+    [[ -n ${name} || -n ${subvolume} || -n ${extra} ]] || continue
+    [[ ${name} =~ ^[A-Za-z0-9][A-Za-z0-9_-]*$ ]] || die "invalid snapshot member name: ${name}"
+    [[ -z ${extra} ]] || die "snapshot member ${name} contains an extra field"
+    validate_relative_subvolume "${subvolume}" "snapshot member ${name}"
+    [[ -z ${seen_names[${name}]+x} ]] || die "duplicate snapshot member name: ${name}"
+    [[ -z ${seen_subvolumes[${subvolume}]+x} ]] || die "duplicate snapshot source: ${subvolume}"
+    seen_names["${name}"]=1
+    seen_subvolumes["${subvolume}"]=1
+    MEMBER_NAMES+=("${name}")
+    MEMBER_SUBVOLUMES+=("${subvolume}")
+  done <<<"${SNAPSHOT_MEMBERS}"
+
+  (( ${#MEMBER_NAMES[@]} > 0 )) || die "no snapshot members configured"
+  validate_relative_subvolume "${SNAPSHOT_STORAGE_SUBVOLUME}" "snapshot storage subvolume"
+  [[ ${SNAPSHOT_STORAGE_SUBVOLUME} != */* ]] \
+    || die "snapshot storage must be one top-level subvolume"
+  for existing in "${MEMBER_SUBVOLUMES[@]}"; do
+    if paths_overlap "${SNAPSHOT_STORAGE_SUBVOLUME}" "${existing}"; then
+      die "snapshot storage overlaps source subvolume: ${existing}"
+    fi
+  done
+}
+
+prepare_identity() {
+  local generation=$1 requested_path=$2 require_existing=${3:-1} store_name resolved_path
+
+  [[ ${generation} =~ ^[1-9][0-9]*$ ]] || die "invalid generation: ${generation}"
+
+  if resolved_path=$(readlink -e -- "${requested_path}" 2>/dev/null); then
+    SYSTEM_PATH=${resolved_path}
+  elif (( require_existing )); then
+    die "cannot resolve system path: ${requested_path}"
+  else
+    SYSTEM_PATH=${requested_path}
+  fi
+  [[ ${SYSTEM_PATH} =~ ^/nix/store/[0-9a-z]{32}-[^/]+$ ]] \
+    || die "invalid Nix store path: ${SYSTEM_PATH}"
+
+  store_name=${SYSTEM_PATH##*/}
+  STORE_HASH=${store_name%%-*}
+  [[ ${STORE_HASH} =~ ^[0-9a-z]{32}$ ]] || die "cannot extract a Nix store hash from ${SYSTEM_PATH}"
+
+  GENERATION=${generation}
+  SET_KEY="g${GENERATION}-${STORE_HASH}"
+}
+
+mount_top_level() {
+  local filesystem_mount filesystem_type source device
+
+  filesystem_mount=$(readlink -e -- "${SNAPSHOT_FILESYSTEM_MOUNT}") \
+    || die "cannot resolve filesystem mount: ${SNAPSHOT_FILESYSTEM_MOUNT}"
+  filesystem_type=$(findmnt -n -o FSTYPE --target "${filesystem_mount}") \
+    || die "cannot inspect filesystem mount: ${filesystem_mount}"
+  [[ ${filesystem_type} == btrfs ]] || die "${filesystem_mount} is not Btrfs"
+
+  source=$(findmnt -n -o SOURCE --target "${filesystem_mount}") \
+    || die "cannot determine the Btrfs device for ${filesystem_mount}"
+  device=${source%%\[*}
+  [[ -b ${device} ]] || die "Btrfs source is not a block device: ${device}"
+
+  MOUNT_DIR=$(mktemp -d /run/nixos-generation-snapshot.XXXXXX)
+  mount -t btrfs -o subvolid=5,nodev,nosuid,noexec "${device}" "${MOUNT_DIR}"
+  MOUNTED=1
+  STORAGE_DIR="${MOUNT_DIR}/${SNAPSHOT_STORAGE_SUBVOLUME}"
+}
+
+ensure_storage() {
+  if [[ ! -e ${STORAGE_DIR} ]]; then
+    btrfs subvolume create -- "${STORAGE_DIR}" >/dev/null
+    chmod 0700 -- "${STORAGE_DIR}"
+  elif [[ -L ${STORAGE_DIR} ]] || ! btrfs subvolume show "${STORAGE_DIR}" >/dev/null 2>&1; then
+    die "snapshot storage is not a Btrfs subvolume: ${STORAGE_DIR}"
+  fi
+  cleanup_stale_staging
+}
+
+subvolume_uuid() {
+  btrfs subvolume show "$1" | awk '$1 == "UUID:" && !found { print $2; found = 1 }'
+}
+
+runtime_belongs_to_system() {
+  local runtime=$1 system=$2 candidate target
+
+  [[ -n ${runtime} ]] || return 1
+  [[ ${runtime} == "${system}" ]] && return 0
+
+  if [[ -d ${system}/specialisation ]]; then
+    for candidate in "${system}"/specialisation/*; do
+      [[ -e ${candidate} ]] || continue
+      target=$(readlink -e -- "${candidate}") || continue
+      [[ ${runtime} == "${target}" ]] && return 0
+    done
+  fi
+  return 1
+}
+
+manifest_entry_is_expected() {
+  local entry=$1 name
+
+  [[ ${entry} == manifest.json ]] && return 0
+  for name in "${MANIFEST_NAMES[@]}"; do
+    [[ ${entry} == "${name}" ]] && return 0
+  done
+  return 1
+}
+
+collect_entry_names() {
+  local directory=$1 result_name=$2 entry find_fd find_pid
+  local -n result=${result_name}
+
+  result=()
+  exec {find_fd}< <(find "${directory}" -mindepth 1 -maxdepth 1 -printf '%f\0')
+  find_pid=$!
+  while IFS= read -r -d '' entry <&"${find_fd}"; do
+    result+=("${entry}")
+  done
+  exec {find_fd}<&-
+  wait "${find_pid}"
+}
+
+load_manifest() {
+  local set_dir=$1 name source uuid store_name manifest_count
+  local manifest="${set_dir}/manifest.json"
+
+  MANIFEST_NAMES=()
+  MANIFEST_SOURCES=()
+  MANIFEST_UUIDS=()
+  MANIFEST_GENERATION=""
+  MANIFEST_SYSTEM_PATH=""
+  MANIFEST_STORE_HASH=""
+  MANIFEST_SET_KEY=""
+
+  [[ -d ${set_dir} && ! -L ${set_dir} ]] || return 1
+  [[ -f ${manifest} && ! -L ${manifest} ]] || return 1
+  jq -e '
+    (.schema == 1)
+    and (.status == "complete")
+    and (.phase == "checkpoint")
+    and (.generation | type == "number")
+    and (.generation > 0)
+    and (.generation == (.generation | floor))
+    and (.systemPath | type == "string"
+      and test("^/nix/store/[0-9a-z]{32}-[^/]+\\z")
+      and all(explode[]; . >= 32 and . != 127))
+    and (.storeHash | type == "string" and test("^[0-9a-z]{32}\\z"))
+    and (.createdAt | type == "string" and all(explode[]; . >= 32 and . != 127))
+    and (.members | type == "object" and length > 0)
+    and all(.members | to_entries[];
+      (.key | test("^[A-Za-z0-9][A-Za-z0-9_-]*\\z"))
+      and (.value | type == "object")
+      and (.value.sourceSubvolume | type == "string")
+      and (.value.sourceSubvolume | length > 0)
+      and (.value.sourceSubvolume | startswith("/") | not)
+      and (.value.sourceSubvolume | all(explode[]; . >= 32 and . != 127))
+      and all(.value.sourceSubvolume | split("/")[]; length > 0 and . != "." and . != "..")
+      and (.value.uuid | type == "string"
+        and test("^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}\\z")))
+  ' "${manifest}" >/dev/null 2>&1 || return 1
+
+  MANIFEST_GENERATION=$(jq -r '.generation | tostring' "${manifest}") || return 1
+  MANIFEST_SYSTEM_PATH=$(jq -r '.systemPath' "${manifest}") || return 1
+  MANIFEST_STORE_HASH=$(jq -r '.storeHash' "${manifest}") || return 1
+  [[ ${MANIFEST_GENERATION} =~ ^[1-9][0-9]*$ ]] || return 1
+  [[ ${MANIFEST_SYSTEM_PATH} =~ ^/nix/store/[0-9a-z]{32}-[^/]+$ ]] || return 1
+  [[ ${MANIFEST_STORE_HASH} =~ ^[0-9a-z]{32}$ ]] || return 1
+  store_name=${MANIFEST_SYSTEM_PATH##*/}
+  [[ ${store_name%%-*} == "${MANIFEST_STORE_HASH}" ]] || return 1
+
+  MANIFEST_SET_KEY="g${MANIFEST_GENERATION}-${MANIFEST_STORE_HASH}"
+  [[ ${set_dir##*/} == "${MANIFEST_SET_KEY}" ]] || return 1
+
+  manifest_count=$(jq -r '.members | length' "${manifest}") || return 1
+  mapfile -t MANIFEST_NAMES < <(jq -r '.members | keys[]' "${manifest}")
+  (( ${#MANIFEST_NAMES[@]} > 0 && ${#MANIFEST_NAMES[@]} == manifest_count )) || return 1
+  for name in "${MANIFEST_NAMES[@]}"; do
+    [[ ${name} =~ ^[A-Za-z0-9][A-Za-z0-9_-]*$ ]] || return 1
+    source=$(jq -er --arg name "${name}" '.members[$name].sourceSubvolume' "${manifest}") \
+      || return 1
+    uuid=$(jq -er --arg name "${name}" '.members[$name].uuid' "${manifest}") || return 1
+    relative_subvolume_is_safe "${source}" || return 1
+    [[ ${uuid} =~ ^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$ ]] \
+      || return 1
+    MANIFEST_SOURCES["${name}"]=${source}
+    MANIFEST_UUIDS["${name}"]=${uuid}
+  done
+}
+
+validate_manifest_members() {
+  local set_dir=$1 require_all=$2 entry name member_path actual_uuid readonly_property
+  local -a entries=()
+
+  collect_entry_names "${set_dir}" entries || return 1
+  for entry in "${entries[@]}"; do
+    manifest_entry_is_expected "${entry}" || return 1
+  done
+
+  for name in "${MANIFEST_NAMES[@]}"; do
+    member_path="${set_dir}/${name}"
+    if [[ ! -e ${member_path} && ! -L ${member_path} ]]; then
+      (( require_all == 0 )) || return 1
+      continue
+    fi
+    [[ -d ${member_path} && ! -L ${member_path} ]] || return 1
+    btrfs subvolume show "${member_path}" >/dev/null 2>&1 || return 1
+    actual_uuid=$(subvolume_uuid "${member_path}") || return 1
+    [[ -n ${actual_uuid} && ${actual_uuid} == "${MANIFEST_UUIDS[${name}]}" ]] || return 1
+    readonly_property=$(btrfs property get -ts "${member_path}" ro) || return 1
+    [[ ${readonly_property} == "ro=true" ]] || return 1
+  done
+}
+
+validate_set() {
+  local set_dir=$1 require_current_members=${2:-0} index name subvolume
+
+  load_manifest "${set_dir}" || return 1
+  [[ ${MANIFEST_GENERATION} == "${GENERATION}" ]] || return 1
+  [[ ${MANIFEST_SYSTEM_PATH} == "${SYSTEM_PATH}" ]] || return 1
+  [[ ${MANIFEST_STORE_HASH} == "${STORE_HASH}" ]] || return 1
+  validate_manifest_members "${set_dir}" 1 || return 1
+
+  if (( require_current_members )); then
+    [[ ${#MANIFEST_NAMES[@]} -eq ${#MEMBER_NAMES[@]} ]] || return 1
+    for index in "${!MEMBER_NAMES[@]}"; do
+      name=${MEMBER_NAMES[${index}]}
+      subvolume=${MEMBER_SUBVOLUMES[${index}]}
+      [[ -n ${MANIFEST_SOURCES[${name}]+x} ]] || return 1
+      [[ ${MANIFEST_SOURCES[${name}]} == "${subvolume}" ]] || return 1
+    done
+  fi
+}
+
+remove_set() {
+  local set_dir=$1 name member_path failures=0
+
+  load_manifest "${set_dir}" || return 1
+  validate_manifest_members "${set_dir}" 0 || return 1
+
+  for name in "${MANIFEST_NAMES[@]}"; do
+    member_path="${set_dir}/${name}"
+    [[ -e ${member_path} || -L ${member_path} ]] || continue
+    if ! btrfs subvolume delete -- "${member_path}" >/dev/null; then
+      failures=1
+    fi
+  done
+  (( failures == 0 )) || return 1
+
+  if ! rm -f -- "${set_dir}/manifest.json"; then
+    return 1
+  fi
+  rmdir -- "${set_dir}"
+}
+
+cleanup_stale_staging() {
+  local dir entry name member_path failures readonly_property
+  local -a entries=()
+  local -a names=()
+
+  for dir in "${STORAGE_DIR}"/.staging-*; do
+    [[ -e ${dir} || -L ${dir} ]] || continue
+    name=${dir##*/}
+    if [[ ! ${name} =~ ^\.staging-g[1-9][0-9]*-[0-9a-z]{32}-[0-9]+$ ]] \
+      || [[ ! -d ${dir} || -L ${dir} ]]; then
+      warn "leaving malformed staging entry in place: ${name}"
+      continue
+    fi
+
+    names=()
+    failures=0
+    if ! collect_entry_names "${dir}" entries; then
+      warn "could not inspect staging entry: ${dir##*/}"
+      continue
+    fi
+    for name in "${entries[@]}"; do
+      entry="${dir}/${name}"
+      case "${name}" in
+        manifest.json | .manifest.tmp)
+          [[ -f ${entry} && ! -L ${entry} ]] || failures=1
+          ;;
+        *)
+          if [[ ! ${name} =~ ^[A-Za-z0-9][A-Za-z0-9_-]*$ ]] \
+            || [[ ! -d ${entry} || -L ${entry} ]] \
+            || ! btrfs subvolume show "${entry}" >/dev/null 2>&1 \
+            || ! readonly_property=$(btrfs property get -ts "${entry}" ro) \
+            || [[ ${readonly_property} != "ro=true" ]]; then
+            failures=1
+          else
+            names+=("${name}")
+          fi
+          ;;
+      esac
+    done
+
+    if (( failures )); then
+      warn "leaving unverified staging entry in place: ${dir##*/}"
+      continue
+    fi
+    for name in "${names[@]}"; do
+      member_path="${dir}/${name}"
+      if ! btrfs subvolume delete -- "${member_path}" >/dev/null; then
+        failures=1
+      fi
+    done
+    if (( failures )); then
+      warn "staging cleanup is incomplete: ${dir##*/}"
+      continue
+    fi
+    rm -f -- "${dir}/manifest.json" "${dir}/.manifest.tmp" || {
+      warn "could not remove staging metadata: ${dir##*/}"
+      continue
+    }
+    if rmdir -- "${dir}"; then
+      log "removed stale staging entry ${dir##*/}"
+    else
+      warn "could not remove staging directory: ${dir##*/}"
+    fi
+  done
+}
+
+create_set() {
+  local final_dir manifest_tmp members_json='{}'
+  local index name subvolume source_path destination uuid created_at
+
+  prepare_identity "$1" "$2"
+  mount_top_level
+  ensure_storage
+
+  final_dir="${STORAGE_DIR}/${SET_KEY}"
+  if [[ -e ${final_dir} || -L ${final_dir} ]]; then
+    validate_set "${final_dir}" 1 \
+      || die "existing checkpoint failed validation: ${SET_KEY}"
+    log "reusing immutable checkpoint ${SET_KEY}"
+    return 0
+  fi
+
+  sync -f -- "${SNAPSHOT_FILESYSTEM_MOUNT}"
+  STAGING_DIR="${STORAGE_DIR}/.staging-${SET_KEY}-${BASHPID}"
+  [[ ! -e ${STAGING_DIR} ]] || die "staging path already exists: ${STAGING_DIR}"
+  install -d -m 0700 -- "${STAGING_DIR}"
+
+  for index in "${!MEMBER_NAMES[@]}"; do
+    name=${MEMBER_NAMES[${index}]}
+    subvolume=${MEMBER_SUBVOLUMES[${index}]}
+    source_path="${MOUNT_DIR}/${subvolume}"
+    destination="${STAGING_DIR}/${name}"
+
+    btrfs subvolume show "${source_path}" >/dev/null 2>&1 \
+      || die "snapshot source is not a Btrfs subvolume: ${subvolume}"
+    btrfs subvolume snapshot -r "${source_path}" "${destination}" >/dev/null
+    uuid=$(subvolume_uuid "${destination}")
+    [[ -n ${uuid} ]] || die "cannot read snapshot UUID for ${name}"
+
+    members_json=$(jq -c \
+      --arg name "${name}" \
+      --arg sourceSubvolume "${subvolume}" \
+      --arg uuid "${uuid}" \
+      '. + {($name): {sourceSubvolume: $sourceSubvolume, uuid: $uuid}}' \
+      <<<"${members_json}")
+  done
+
+  created_at=$(date --utc +%Y-%m-%dT%H:%M:%SZ)
+  manifest_tmp="${STAGING_DIR}/.manifest.tmp"
+  jq -n \
+    --argjson generation "${GENERATION}" \
+    --arg systemPath "${SYSTEM_PATH}" \
+    --arg storeHash "${STORE_HASH}" \
+    --arg createdAt "${created_at}" \
+    --argjson members "${members_json}" \
+    '{
+      schema: 1,
+      status: "complete",
+      phase: "checkpoint",
+      generation: $generation,
+      systemPath: $systemPath,
+      storeHash: $storeHash,
+      createdAt: $createdAt,
+      members: $members
+    }' >"${manifest_tmp}"
+  chmod 0600 -- "${manifest_tmp}"
+  mv -- "${manifest_tmp}" "${STAGING_DIR}/manifest.json"
+  sync -f -- "${STAGING_DIR}"
+  mv -- "${STAGING_DIR}" "${final_dir}"
+  STAGING_DIR=""
+  sync -f -- "${STORAGE_DIR}"
+
+  log "created immutable checkpoint ${SET_KEY}"
+}
+
+load_current_profile() {
+  local profile_link profile_name generation profile_path runtime_path
+
+  profile_link=$(readlink -- "${SYSTEM_PROFILE}") \
+    || die "cannot read current system profile ${SYSTEM_PROFILE}"
+  profile_name=${profile_link##*/}
+  [[ ${profile_name} =~ ^system-([0-9]+)-link$ ]] \
+    || die "cannot parse the current system generation from ${profile_link}"
+  generation=${BASH_REMATCH[1]}
+  profile_path=$(readlink -e -- "${SYSTEM_PROFILE}-${generation}-link") \
+    || die "cannot resolve current generation ${generation}"
+  runtime_path=$(readlink -e -- /run/current-system) \
+    || die "cannot resolve /run/current-system"
+  runtime_belongs_to_system "${runtime_path}" "${profile_path}" \
+    || die "the current profile and /run/current-system do not match"
+
+  CURRENT_PROFILE_GENERATION=${generation}
+  CURRENT_PROFILE_PATH=${profile_path}
+}
+
+capture_current() {
+  load_current_profile
+  create_set "${CURRENT_PROFILE_GENERATION}" "${CURRENT_PROFILE_PATH}"
+}
+
+verify_current() {
+  local final_dir
+
+  load_current_profile
+  prepare_identity "${CURRENT_PROFILE_GENERATION}" "${CURRENT_PROFILE_PATH}"
+  mount_top_level
+  [[ -e ${STORAGE_DIR} && ! -L ${STORAGE_DIR} ]] \
+    || die "managed checkpoint storage does not exist"
+  btrfs subvolume show "${STORAGE_DIR}" >/dev/null 2>&1 \
+    || die "snapshot storage is not a Btrfs subvolume: ${STORAGE_DIR}"
+  final_dir="${STORAGE_DIR}/${SET_KEY}"
+  validate_set "${final_dir}" 1 || die "current checkpoint failed validation: ${SET_KEY}"
+  log "verified immutable checkpoint ${SET_KEY}"
+}
+
+prune_sets() {
+  local profile=${1:-${SYSTEM_PROFILE}} set_dir generation system_path key
+  local profile_link profile_name current_generation current_profile_target generation_link
+  local profile_target current_runtime booted_runtime failures=0
+
+  [[ ${profile} == "${SYSTEM_PROFILE}" ]] \
+    || die "prune only accepts the configured system profile: ${SYSTEM_PROFILE}"
+  [[ -L ${profile} ]] || die "system profile is not a symlink: ${profile}"
+  profile_link=$(readlink -- "${profile}") || die "cannot read system profile: ${profile}"
+  profile_name=${profile_link##*/}
+  [[ ${profile_name} =~ ^system-([0-9]+)-link$ ]] \
+    || die "cannot parse the current system generation from ${profile_link}"
+  current_generation=${BASH_REMATCH[1]}
+  current_profile_target=$(readlink -e -- "${profile}") \
+    || die "cannot resolve the current system profile"
+  profile_target=$(readlink -e -- "${profile}-${current_generation}-link" 2>/dev/null || true)
+  [[ ${profile_target} == "${current_profile_target}" ]] \
+    || die "the current system profile generation is inconsistent"
+
+  mount_top_level
+  [[ -e ${STORAGE_DIR} ]] || {
+    log "no managed snapshot storage exists"
+    return 0
+  }
+  ensure_storage
+
+  current_runtime=$(readlink -e -- /run/current-system 2>/dev/null || true)
+  booted_runtime=$(readlink -e -- /run/booted-system 2>/dev/null || true)
+
+  for set_dir in "${STORAGE_DIR}"/g*-*; do
+    [[ -e ${set_dir} || -L ${set_dir} ]] || continue
+    key=${set_dir##*/}
+    if [[ -d ${set_dir} && ! -L ${set_dir} && ! -e ${set_dir}/manifest.json ]] \
+      && [[ -z $(find "${set_dir}" -mindepth 1 -maxdepth 1 -print -quit) ]]; then
+      if rmdir -- "${set_dir}"; then
+        log "removed empty checkpoint directory ${key}"
+      else
+        warn "could not remove empty checkpoint directory: ${key}"
+        failures=1
+      fi
+      continue
+    fi
+    if ! load_manifest "${set_dir}"; then
+      warn "leaving snapshot with failed validation in place: ${key}"
+      failures=1
+      continue
+    fi
+    generation=${MANIFEST_GENERATION}
+    system_path=${MANIFEST_SYSTEM_PATH}
+
+    generation_link="${profile}-${generation}-link"
+    if [[ -L ${generation_link} ]]; then
+      profile_target=$(readlink -e -- "${generation_link}" 2>/dev/null || true)
+      if [[ -z ${profile_target} ]]; then
+        warn "retaining checkpoint for dangling generation link ${generation}"
+        failures=1
+        continue
+      fi
+    else
+      profile_target=""
+    fi
+    if [[ ${profile_target} == "${system_path}" ]] \
+      || runtime_belongs_to_system "${current_runtime}" "${system_path}" \
+      || runtime_belongs_to_system "${booted_runtime}" "${system_path}"; then
+      if ! validate_manifest_members "${set_dir}" 1; then
+        warn "retained checkpoint failed member validation: ${key}"
+        failures=1
+      fi
+      continue
+    fi
+
+    if ! remove_set "${set_dir}"; then
+      warn "failed to remove orphan snapshot set: ${key}"
+      failures=1
+      continue
+    fi
+    log "removed orphan snapshot set ${key}"
+  done
+
+  (( failures == 0 )) || return 1
+}
+
+list_sets() {
+  local set_dir
+
+  mount_top_level
+  [[ -e ${STORAGE_DIR} ]] || return 0
+  if [[ -L ${STORAGE_DIR} ]] || ! btrfs subvolume show "${STORAGE_DIR}" >/dev/null 2>&1; then
+    die "snapshot storage is not a Btrfs subvolume: ${STORAGE_DIR}"
+  fi
+
+  for set_dir in "${STORAGE_DIR}"/g*-*; do
+    [[ -e ${set_dir} || -L ${set_dir} ]] || continue
+    if load_manifest "${set_dir}" && validate_manifest_members "${set_dir}" 1; then
+      jq -r '[.generation, .storeHash, .createdAt, .phase] | @tsv' "${set_dir}/manifest.json"
+    else
+      warn "skipping invalid checkpoint: ${set_dir##*/}"
+    fi
+  done
+}
+
+if [[ ${1:-} == -h || ${1:-} == --help ]]; then
+  usage
+  exit 0
+fi
+
+[[ ${EUID} -eq 0 ]] || die "run this command as root"
+
+load_members
+install -d -m 0755 -- "${LOCK_FILE%/*}"
+exec 9>"${LOCK_FILE}"
+flock 9
+
+case "${1:-}" in
+  create)
+    [[ $# -eq 3 ]] || die "create requires GENERATION and SYSTEM_PATH"
+    create_set "$2" "$3"
+    ;;
+  capture-current)
+    [[ $# -eq 1 ]] || die "capture-current accepts no arguments"
+    capture_current
+    ;;
+  verify-current)
+    [[ $# -eq 1 ]] || die "verify-current accepts no arguments"
+    verify_current
+    ;;
+  prune)
+    [[ $# -le 2 ]] || die "prune accepts at most SYSTEM_PROFILE"
+    prune_sets "${2:-${SYSTEM_PROFILE}}"
+    ;;
+  list)
+    [[ $# -eq 1 ]] || die "list accepts no arguments"
+    list_sets
+    ;;
+  *)
+    usage >&2
+    exit 2
+    ;;
+esac
