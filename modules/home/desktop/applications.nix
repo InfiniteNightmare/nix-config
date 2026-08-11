@@ -17,6 +17,7 @@ in
   home.packages = with pkgs; [
     zoteroX11
     obsidian
+    keepassxc
     motrix
     snipaste
     fluent-reader
