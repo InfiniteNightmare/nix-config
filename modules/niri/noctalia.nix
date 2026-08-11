@@ -303,7 +303,6 @@ in
           { type = "wifi"; }
           { type = "bluetooth"; }
           { type = "wallpaper"; }
-          { type = "power_profile"; }
           { type = "caffeine"; }
           { type = "nightlight"; }
         ];
@@ -352,7 +351,7 @@ in
         transition_duration = 1200;
         edge_smoothness = 0.3;
         transition_on_startup = false;
-        directory = wallpaper.directory;
+        inherit (wallpaper) directory;
         directory_light = "";
         directory_dark = "";
         per_monitor_directories = true;
@@ -416,7 +415,6 @@ in
           brightness = true;
           wifi = true;
           bluetooth = true;
-          power_profile = true;
           caffeine = true;
           dnd = true;
           lock_keys = true;

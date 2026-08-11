@@ -12,7 +12,6 @@
 
     config = {
       # Video decoding and rendering
-      profile = "gpu-hq";
       vo = "gpu";
       hwdec = "auto-safe";
 
