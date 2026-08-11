@@ -46,63 +46,61 @@ let
 
   defaultGid = 100;
 
-  mountSubmodule =
-    { name, ... }:
-    {
-      options = {
-        url = mkOption {
-          type = types.str;
-          description = "WebDAV endpoint URL.";
-        };
-        username = mkOption {
-          type = types.nullOr types.str;
-          default = null;
-          description = "Username for authentication.";
-        };
-        encryptedPasswordFile = mkOption {
-          type = types.nullOr types.path;
-          default = null;
-          description = "Age-encrypted file containing the WebDAV password.";
-        };
-        mountPoint = mkOption {
-          type = types.nullOr types.str;
-          default = null;
-          description = "Override mount point (default /mnt/<name>).";
-        };
-        readOnly = mkOption {
-          type = types.bool;
-          default = false;
-          description = "Mount read-only if true.";
-        };
-        automount = mkOption {
+  mountSubmodule = _: {
+    options = {
+      url = mkOption {
+        type = types.str;
+        description = "WebDAV endpoint URL.";
+      };
+      username = mkOption {
+        type = types.nullOr types.str;
+        default = null;
+        description = "Username for authentication.";
+      };
+      encryptedPasswordFile = mkOption {
+        type = types.nullOr types.path;
+        default = null;
+        description = "Age-encrypted file containing the WebDAV password.";
+      };
+      mountPoint = mkOption {
+        type = types.nullOr types.str;
+        default = null;
+        description = "Override mount point (default /mnt/<name>).";
+      };
+      readOnly = mkOption {
+        type = types.bool;
+        default = false;
+        description = "Mount read-only if true.";
+      };
+      automount = mkOption {
+        type = types.bool;
+        default = true;
+        description = "Whether to mount automatically on boot.";
+      };
+      cache = {
+        enable = mkOption {
           type = types.bool;
           default = true;
-          description = "Whether to mount automatically on boot.";
+          description = "Enable rclone vfs caching.";
         };
-        cache = {
-          enable = mkOption {
-            type = types.bool;
-            default = true;
-            description = "Enable rclone vfs caching.";
-          };
-          sizeMiB = mkOption {
-            type = types.int;
-            default = 5000; # Default to 5GB for rclone
-            description = "Max cache size in MiB (when cache.enable = true). Note: This acts as the max size for rclone's sparse cache.";
-          };
-          baseDir = mkOption {
-            type = types.str;
-            default = "/var/cache/rclone";
-            description = "Base directory for per-mount cache subdirectories.";
-          };
+        sizeMiB = mkOption {
+          type = types.int;
+          default = 5000; # Default to 5GB for rclone
+          description = "Max cache size in MiB (when cache.enable = true). Note: This acts as the max size for rclone's sparse cache.";
         };
-        extraOptions = mkOption {
-          type = types.listOf types.str;
-          default = [ ];
-          description = "Extra arguments to pass to rclone mount.";
+        baseDir = mkOption {
+          type = types.str;
+          default = "/var/cache/rclone";
+          description = "Base directory for per-mount cache subdirectories.";
         };
       };
+      extraOptions = mkOption {
+        type = types.listOf types.str;
+        default = [ ];
+        description = "Extra arguments to pass to rclone mount.";
+      };
     };
+  };
 
   # Convert attrset of mounts to a list to generate systemd services
   normalizedMounts = lib.mapAttrsToList (
@@ -112,6 +110,11 @@ let
       cacheDir = if m.cache.enable then "${m.cache.baseDir}/${name}" else null;
       runConfigDir = "/run/rclone";
       runConfigPath = "${runConfigDir}/${name}.conf";
+      encryptedPasswordPath =
+        if m.encryptedPasswordFile == null then
+          null
+        else
+          pkgs.writeText "webdav-${name}-password.age" (builtins.readFile m.encryptedPasswordFile);
 
       # Accept both `--flag` style and `flag` style options.
       normalizeMountOption = opt: if hasPrefix "--" opt then removePrefix "--" opt else opt;
@@ -123,9 +126,10 @@ let
         cacheDir
         runConfigDir
         runConfigPath
+        encryptedPasswordPath
         normalizeMountOption
         ;
-      m = m;
+      inherit m;
     }
   ) cfg.mounts;
 
@@ -211,7 +215,7 @@ in
 
             RAW_PASS=""
             ${optionalString (nm.m.encryptedPasswordFile != null) ''
-              RAW_PASS="$(${pkgs.rage}/bin/rage -d ${identityArgs} ${lib.escapeShellArg nm.m.encryptedPasswordFile})"
+              RAW_PASS="$(${pkgs.rage}/bin/rage -d ${identityArgs} ${lib.escapeShellArg nm.encryptedPasswordPath})"
             ''}
 
             OBS_PASS=$(${pkgs.rclone}/bin/rclone --config /dev/null obscure "$RAW_PASS")
@@ -267,14 +271,14 @@ in
               "x-systemd.idle-timeout=60"
             ]
             ++ lib.optionals nm.m.readOnly [ "read-only" ]
-            ++ lib.optionals nm.m.cache.enable ([
+            ++ lib.optionals nm.m.cache.enable [
               "vfs-cache-mode=full"
               "vfs-cache-max-size=${toString nm.m.cache.sizeMiB}M"
               "vfs-cache-max-age=24h"
               "cache-dir=${nm.cacheDir}"
               "dir-cache-time=1m"
               "buffer-size=64M"
-            ])
+            ]
             ++ extraOptions;
           };
         }
