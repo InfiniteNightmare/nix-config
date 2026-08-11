@@ -53,6 +53,7 @@ in
       yq-go # yaml processor https://github.com/mikefarah/yq
       eza # A modern replacement for ‘ls’
       fzf # A command-line fuzzy finder
+      trash-cli # Freedesktop-compatible trash management
 
       # networking tools
       mtr # A network diagnostic tool
