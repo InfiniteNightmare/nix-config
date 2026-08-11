@@ -22,7 +22,6 @@ in
     ../../modules/container
     ../../modules/btrfs-snapshots
     ../../modules/zju-connect
-    ./secrets.nix
     inputs.agenix.nixosModules.default
   ];
 
@@ -52,14 +51,11 @@ in
     enable = true;
     uuid = "102ABC442ABC289C";
     mountPoint = "/var/lib/windows-ro";
-    fsType = "ntfs3";
+    fsType = "ntfs";
     readonly = true;
     autoMount = true;
     autoMountIdleTimeout = "60s";
     allowFail = true;
-    autoFallback = true;
-    # Bind mount removed; fontconfig should include: /var/lib/windows-ro/Windows/Fonts
-    refreshFontCacheOnActivation = true;
   };
 
   networking.hostName = "nixos";
@@ -232,7 +228,6 @@ in
     wget
     curl
     helix
-    sddm-astronaut
     age
     ragenix
     system-config-printer

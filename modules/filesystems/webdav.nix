@@ -64,11 +64,6 @@ let
           default = null;
           description = "Age-encrypted file containing the WebDAV password.";
         };
-        password = mkOption {
-          type = types.nullOr types.str;
-          default = null;
-          description = "Inline plain password (discouraged).";
-        };
         mountPoint = mkOption {
           type = types.nullOr types.str;
           default = null;
@@ -162,13 +157,8 @@ in
       message = "webdav mount ${nm.mp}: url cannot be empty.";
     }) normalizedMounts
     ++ map (nm: {
-      assertion = !(nm.m.password != null && nm.m.encryptedPasswordFile != null);
-      message = "webdav mount ${nm.mp}: cannot set both password and encryptedPasswordFile.";
-    }) normalizedMounts
-    ++ map (nm: {
-      assertion =
-        (nm.m.password == null && nm.m.encryptedPasswordFile == null) || (nm.m.username != null);
-      message = "webdav mount ${nm.mp}: username required when a password is provided.";
+      assertion = nm.m.encryptedPasswordFile == null || nm.m.username != null;
+      message = "webdav mount ${nm.mp}: username required with encryptedPasswordFile.";
     }) normalizedMounts
     ++ [
       {
@@ -220,7 +210,6 @@ in
             tmp="$conf.tmp"
 
             RAW_PASS=""
-            ${optionalString (nm.m.password != null) "RAW_PASS=${lib.escapeShellArg nm.m.password}"}
             ${optionalString (nm.m.encryptedPasswordFile != null) ''
               RAW_PASS="$(${pkgs.rage}/bin/rage -d ${identityArgs} ${lib.escapeShellArg nm.m.encryptedPasswordFile})"
             ''}
@@ -292,10 +281,5 @@ in
       ) normalizedMounts
     );
 
-    # Explicitly disable davfs2 since we are replacing it
-    services.davfs2.enable = lib.mkForce false;
-
-    # Remove user from davfs2 group if it exists
-    # users.users.${defaultUserName}.extraGroups = lib.mkForce (lib.remove "davfs2" config.users.users.${defaultUserName}.extraGroups);
   };
 }
