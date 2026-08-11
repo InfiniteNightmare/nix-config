@@ -1,4 +1,4 @@
-_:
+{ pkgs, ... }:
 
 let
   externalUltrawideOutput = {
@@ -23,6 +23,12 @@ let
     ++ args;
 in
 {
+  home.packages = with pkgs; [
+    xwayland-satellite
+    udiskie
+    hyprpicker
+  ];
+
   programs.niri.settings = {
     # Environment variables
     environment = {

@@ -1,6 +1,6 @@
-_:
+{ pkgs, ... }:
 let
-  proxySettings = import ../../../../lib/proxy-settings.nix;
+  proxySettings = import ../../../lib/proxy-settings.nix;
 in
 {
   # Fish shell configuration separated from the generic shell module.
@@ -9,6 +9,11 @@ in
   # 2. 代理环境变量
   # 3. 启动时条件运行 fastfetch
   # 4. 常用别名
+
+  home.packages = with pkgs; [
+    fastfetch
+    eza
+  ];
 
   programs.fish = {
     enable = true;
@@ -92,7 +97,4 @@ in
       end
     end
   '';
-
-  # 如果希望在此模块强制确保 fastfetch 存在（而不是在上游 default.nix 中），可取消注释：
-  # home.packages = [ pkgs.fastfetch ];
 }

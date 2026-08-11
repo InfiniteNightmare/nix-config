@@ -1,6 +1,32 @@
 { pkgs, ... }:
 {
+  home.packages = with pkgs; [
+    gnumake
+    nix-output-monitor
+    hugo
+    gh
+    vscode
+    uv
+    devbox
+    neovide
+    nixd
+  ];
+
   programs = {
+    git = {
+      enable = true;
+      settings = {
+        user.name = "InfiniteNightmare";
+        user.email = "742851870@qq.com";
+      };
+    };
+
+    direnv = {
+      enable = true;
+      enableBashIntegration = true;
+      nix-direnv.enable = true;
+    };
+
     zed-editor = {
       enable = true;
     };

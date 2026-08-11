@@ -9,7 +9,8 @@ let
 in
 {
   imports = [
-    ./fish
+    ./fish.nix
+    ./packages.nix
   ];
 
   programs = {
