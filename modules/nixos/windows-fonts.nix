@@ -1,6 +1,7 @@
 {
   lib,
   config,
+  pkgs,
   ...
 }:
 # Windows fonts mount module (read-only + direct fontconfig scan)
@@ -102,13 +103,25 @@ in
   config = mkIf cfg.enable {
     boot.supportedFilesystems = lib.mkBefore [ cfg.fsType ];
 
-    systemd.tmpfiles.rules = [
-      "d ${cfg.mountPoint} 0700 root root -"
-    ];
+    # A tmpfiles `d` rule reapplies the mode during every switch. If systemd's
+    # automount is already active, that attempts to chmod the read-only NTFS
+    # root. Create the backing directory during activation instead, while
+    # leaving any live mount untouched.
+    system.activationScripts.windowsFontsMountPoint = {
+      deps = [ "specialfs" ];
+      text = ''
+        if ! ${lib.getExe' pkgs.util-linux "findmnt"} --mountpoint ${lib.escapeShellArg cfg.mountPoint} >/dev/null; then
+          ${lib.getExe' pkgs.coreutils "install"} -d -m 0700 -o root -g root -- ${lib.escapeShellArg cfg.mountPoint}
+        fi
+      '';
+    };
 
     fileSystems."${cfg.mountPoint}" = {
       device = devicePath;
       inherit (cfg) fsType;
+      # This is a read-only font source. Let Windows repair NTFS metadata;
+      # NixOS fsck runs before the read-only mount options take effect.
+      noCheck = true;
       options =
         baseMountOptions
         ++ lib.optional cfg.allowFail "nofail"

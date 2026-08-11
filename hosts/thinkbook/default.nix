@@ -33,7 +33,7 @@ in
         efiSupport = true;
         useOSProber = true;
         copyKernels = false;
-        configurationLimit = 3;
+        configurationLimit = 2;
       };
       efi = {
         canTouchEfiVariables = true;
