@@ -17,11 +17,6 @@ in
   imports = [
     ./hardware-configuration.nix
     ./locale.nix
-    ../../modules/nixos/windows-fonts.nix
-    ../../modules/nixos/boot-cleanup.nix
-    ../../modules/nixos/webdav.nix
-    ../../modules/nixos/containers.nix
-    ../../modules/nixos/zju-connect.nix
     inputs.agenix.nixosModules.default
   ];
 

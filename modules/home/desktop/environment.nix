@@ -4,14 +4,6 @@ let
   wallpaperDirectory = "${config.home.homeDirectory}/Pictures/Wallpaper/wallhaven/touhou-project";
 in
 {
-  imports = [
-    ./applications.nix
-    ./language-tools
-    ./niri.nix
-    ./noctalia.nix
-    ./wallhaven-wallpaper.nix
-  ];
-
   home.packages = with pkgs; [
     wl-clipboard
     gnome-keyring

@@ -8,11 +8,6 @@ let
   colors = config.lib.stylix.colors;
 in
 {
-  imports = [
-    ./fish.nix
-    ./packages.nix
-  ];
-
   programs = {
     starship.enable = true;
 

@@ -1,20 +1,6 @@
 { userName, ... }:
 
 {
-  imports = [
-    ./development.nix
-    ./desktop
-    ./fcitx5.nix
-    ./latex.nix
-    ./llm-agents.nix
-    ./media
-    ./proxy
-    ./shell
-    ./theme.nix
-    ./trash.nix
-    ./xdg
-  ];
-
   home = {
     username = userName;
     homeDirectory = "/home/${userName}";

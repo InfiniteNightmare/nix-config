@@ -28,7 +28,7 @@ generation.
 - `hosts/thinkbook/` contains hardware- and host-specific settings.
 - `modules/nixos/` contains reusable system-level NixOS modules.
 - `modules/home/` contains Home Manager modules, grouped by user-facing feature.
-- `lib/` contains shared Nix values that are not modules themselves.
+- `lib/` contains shared Nix helpers and values that are not modules themselves.
 - `secrets/` contains only age-encrypted data; plaintext credentials do not
   belong in this repository.
 - `scripts/` contains the cleanup helpers packaged by
@@ -37,3 +37,7 @@ generation.
 Home Manager secrets are decrypted after the user's home directory is mounted.
 The system WebDAV automount instead decrypts its encrypted password on demand,
 after `/home` is available.
+
+All `.nix` files below `modules/nixos/` and `modules/home/` are discovered
+automatically through `lib/module-files.nix`. Keep pure helper expressions in
+`lib/`; a path component beginning with `_` is excluded from discovery.

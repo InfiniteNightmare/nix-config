@@ -1,5 +1,6 @@
 {
   inputs,
+  moduleFiles,
   userName,
   ...
 }:
@@ -17,8 +18,7 @@
     };
 
     users.${userName} = {
-      imports = [
-        ../home
+      imports = moduleFiles ../home ++ [
         inputs.agenix.homeManagerModules.default
         inputs.stylix.homeModules.stylix
         inputs.zen-browser.homeModules.default

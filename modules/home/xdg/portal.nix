@@ -1,10 +1,5 @@
 { config, pkgs, ... }:
 {
-  imports = [
-    ./mime.nix
-    ./yazi-file-manager.nix
-  ];
-
   home = {
     packages = [ pkgs.xdg-utils ];
     sessionVariables.GTK_USE_PORTAL = "1";

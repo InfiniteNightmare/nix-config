@@ -59,6 +59,8 @@ Since this is a system configuration repo, "tests" are primarily build checks an
 *   Always group imports at the top of the file.
 *   Use relative paths for local modules: `imports = [ ./module.nix ../../modules/general ];`
 *   Use `inputs.` for flake inputs.
+*   Files below `modules/nixos/` and `modules/home/` are imported automatically by `lib/module-files.nix`; do not add directory aggregator modules.
+*   Keep pure helper expressions outside those trees in `lib/`, or prefix a path component with `_` to exclude it from discovery.
 
 ### Functions & Arguments
 *   Standard module arguments: `{ config, pkgs, lib, inputs, ... }:`
@@ -73,7 +75,7 @@ Since this is a system configuration repo, "tests" are primarily build checks an
 
 1.  **Explore First:** Use `ls -R` or `find` to understand where files are located. Do not guess paths.
 2.  **Read Context:** Read `flake.nix` to understand available inputs and overlays before adding new ones.
-3.  **Modularize:** If adding a complex feature (e.g., a new service), create a new file in `modules/` and import it, rather than clogging up `hosts/thinkbook/default.nix`.
+3.  **Modularize:** If adding a complex feature (e.g., a new service), create it in the appropriate auto-discovered module tree rather than clogging up `hosts/thinkbook/default.nix`.
 4.  **No Reverts:** Do not revert changes unless explicitly instructed.
 5.  **State Version:** **NEVER** change `system.stateVersion` or `home.stateVersion` unless you are performing a major system upgrade and understand the consequences.
 

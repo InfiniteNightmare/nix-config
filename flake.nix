@@ -43,6 +43,7 @@
     let
       system = "x86_64-linux";
       userName = "charname";
+      moduleFiles = import ./lib/module-files.nix { inherit (nixpkgs) lib; };
     in
     {
       formatter.${system} = nixpkgs.legacyPackages.${system}.nixfmt-tree;
@@ -50,12 +51,13 @@
       nixosConfigurations.thinkbook = nixpkgs.lib.nixosSystem {
         inherit system;
         specialArgs = {
-          inherit inputs userName;
+          inherit inputs moduleFiles userName;
         };
         modules = [
           ./hosts/thinkbook
-          ./modules/nixos/home-manager.nix
-
+        ]
+        ++ moduleFiles ./modules/nixos
+        ++ [
           inputs.nixos-hardware.nixosModules.common-cpu-amd
           inputs.nixos-hardware.nixosModules.common-gpu-amd
           inputs.nixos-hardware.nixosModules.common-pc-laptop
