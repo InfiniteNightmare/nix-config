@@ -11,7 +11,8 @@
 #
 # Important: we use NixOS `fileSystems` with `fsType = "rclone"` (mount.rclone)
 # so the FUSE mount is visible system-wide (no systemd private mount namespace).
-# Secrets are provided via agenix and written only to /run at activation/runtime.
+# Age-encrypted passwords are decrypted on demand after /home is available and
+# written only to /run for the lifetime of the mount configuration.
 #
 let
   inherit (lib)
@@ -26,11 +27,9 @@ let
 
   cfg = config.filesystems.webdav;
 
-  identityArgs =
-    let
-      identities = config.age.identityPaths or [ ];
-    in
-    lib.concatMapStringsSep " " (p: "-i ${lib.escapeShellArg p}") identities;
+  identityArgs = lib.concatMapStringsSep " " (
+    path: "-i ${lib.escapeShellArg path}"
+  ) cfg.identityPaths;
 
   # Heuristic defaults for ownership
   defaultUserName = "charname";
@@ -60,10 +59,10 @@ let
           default = null;
           description = "Username for authentication.";
         };
-        secret = mkOption {
-          type = types.nullOr types.str;
+        encryptedPasswordFile = mkOption {
+          type = types.nullOr types.path;
           default = null;
-          description = "Name of an age secret (config.age.secrets.<name>) containing the plaintext password.";
+          description = "Age-encrypted file containing the WebDAV password.";
         };
         password = mkOption {
           type = types.nullOr types.str;
@@ -139,6 +138,11 @@ in
 {
   options.filesystems.webdav = {
     enable = mkEnableOption "Simplified WebDAV multi-mount management (powered by rclone)";
+    identityPaths = mkOption {
+      type = types.listOf types.str;
+      default = [ ];
+      description = "Runtime private key paths used to decrypt encrypted WebDAV passwords.";
+    };
     mounts = mkOption {
       type = types.attrsOf (types.submodule mountSubmodule);
       default = { };
@@ -158,19 +162,20 @@ in
       message = "webdav mount ${nm.mp}: url cannot be empty.";
     }) normalizedMounts
     ++ map (nm: {
-      assertion = !(nm.m.password != null && nm.m.secret != null);
-      message = "webdav mount ${nm.mp}: cannot set both password and secret.";
+      assertion = !(nm.m.password != null && nm.m.encryptedPasswordFile != null);
+      message = "webdav mount ${nm.mp}: cannot set both password and encryptedPasswordFile.";
     }) normalizedMounts
     ++ map (nm: {
-      assertion = (nm.m.password == null && nm.m.secret == null) || (nm.m.username != null);
-      message = "webdav mount ${nm.mp}: username required when password or secret provided.";
+      assertion =
+        (nm.m.password == null && nm.m.encryptedPasswordFile == null) || (nm.m.username != null);
+      message = "webdav mount ${nm.mp}: username required when a password is provided.";
     }) normalizedMounts
     ++ [
       {
         assertion = builtins.all (
-          nm: nm.m.secret == null || ((config.age.identityPaths or [ ]) != [ ])
+          nm: nm.m.encryptedPasswordFile == null || cfg.identityPaths != [ ]
         ) normalizedMounts;
-        message = "webdav mounts using age secrets require age.identityPaths to be set (e.g. /home/charname/.ssh/id_ed25519).";
+        message = "webdav mounts using encryptedPasswordFile require filesystems.webdav.identityPaths.";
       }
     ];
 
@@ -193,7 +198,7 @@ in
         "rclone-config-${nm.name}" = {
           description = "Generate rclone config for WebDAV ${nm.name}";
 
-          unitConfig = lib.optionalAttrs (nm.m.secret != null) {
+          unitConfig = lib.optionalAttrs (nm.m.encryptedPasswordFile != null) {
             # Decrypt using local identity; avoid relying on /run/agenix (tmpfs).
             RequiresMountsFor = [ "/home" ];
           };
@@ -211,22 +216,20 @@ in
             set -euo pipefail
             umask 077
 
-                        conf=${lib.escapeShellArg nm.runConfigPath}
-                        tmp="$conf.tmp"
+            conf=${lib.escapeShellArg nm.runConfigPath}
+            tmp="$conf.tmp"
 
             RAW_PASS=""
             ${optionalString (nm.m.password != null) "RAW_PASS=${lib.escapeShellArg nm.m.password}"}
-            ${optionalString (nm.m.secret != null) ''
-              RAW_PASS="$(${pkgs.rage}/bin/rage -d ${identityArgs} ${
-                lib.escapeShellArg config.age.secrets.${nm.m.secret}.file
-              })"
+            ${optionalString (nm.m.encryptedPasswordFile != null) ''
+              RAW_PASS="$(${pkgs.rage}/bin/rage -d ${identityArgs} ${lib.escapeShellArg nm.m.encryptedPasswordFile})"
             ''}
 
             OBS_PASS=$(${pkgs.rclone}/bin/rclone --config /dev/null obscure "$RAW_PASS")
 
-                        ${pkgs.coreutils}/bin/mkdir -p ${lib.escapeShellArg nm.runConfigDir}
+            ${pkgs.coreutils}/bin/mkdir -p ${lib.escapeShellArg nm.runConfigDir}
 
-                        ${pkgs.coreutils}/bin/cat >"$tmp" <<EOF
+            ${pkgs.coreutils}/bin/cat >"$tmp" <<EOF
             [${nm.name}]
             type = webdav
             url = ${nm.m.url}
@@ -235,8 +238,8 @@ in
             pass = $OBS_PASS
             EOF
 
-                        ${pkgs.coreutils}/bin/chmod 600 "$tmp"
-                        ${pkgs.coreutils}/bin/mv -f "$tmp" "$conf"
+            ${pkgs.coreutils}/bin/chmod 600 "$tmp"
+            ${pkgs.coreutils}/bin/mv -f "$tmp" "$conf"
           '';
         };
       }) normalizedMounts

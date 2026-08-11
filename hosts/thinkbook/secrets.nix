@@ -3,11 +3,11 @@
   /*
     Host-specific secrets module for 'thinkbook'.
 
-    This file complements the centralized ../../secrets module. Nix merges
-    module definitions independently of import order, so definitions here can:
+    This file contains optional system-level agenix declarations for thinkbook.
+    Nix merges module definitions independently of import order, so it can:
       - Add new secrets used only by this host.
       - Override centralized secret fields explicitly with lib.mkForce.
-      - Append / override age.identityPaths if this host has extra private keys.
+      - Append / override age.identityPaths with keys available during boot.
 
     Quick reference:
 
@@ -19,8 +19,8 @@
            file = ../../secrets/thinkbook-extra-token.age;
          };
 
-    2. Override a shared secret (e.g. use a different WebDAV password for this host):
-         age.secrets.webdav-password.file =
+    2. Select a different encrypted WebDAV password for this host:
+         filesystems.webdav.mounts.fnos.encryptedPasswordFile =
            lib.mkForce ../../secrets/webdav-password-alt.age;
 
     3. Add an additional private key (if you generated a per-host key):
@@ -28,12 +28,12 @@
            "/etc/age/thinkbook-key.txt"
          ];
 
-       mkAfter keeps the shared identity paths and appends this one.
+       mkAfter keeps other declared identity paths and appends this one.
 
-    4. Validating presence of a secret (optional):
+    4. Validating the WebDAV password file (optional):
          assertions = [{
-           assertion = builtins.hasAttr "webdav-password" config.age.secrets;
-           message = "webdav-password secret not defined (thinkbook)";
+           assertion = config.filesystems.webdav.mounts.fnos.encryptedPasswordFile != null;
+           message = "WebDAV password file not defined (thinkbook)";
          }];
 
     Remember:
@@ -43,7 +43,7 @@
     To add a NEW secret flow:
       a. Generate / collect the password/token into a temp file or echo pipeline.
       b. Encrypt with all required public keys -> place under nix-config/secrets/.
-      c. Declare here (host-only) or in ../../secrets/default.nix (shared).
+      c. Declare an age.secrets entry here.
       d. nixos-rebuild switch --flake .#thinkbook
   */
 
@@ -61,8 +61,8 @@
   #   file = ../../secrets/zju-connect-password.age;
   # };
 
-  # Override shared webdav password (example):
-  # age.secrets.webdav-password.file =
+  # Override the WebDAV password file (example):
+  # filesystems.webdav.mounts.fnos.encryptedPasswordFile =
   #   lib.mkForce ../../secrets/webdav-password-alt.age;
 
   # Append an additional per-host private key if you generated one:
@@ -73,8 +73,8 @@
   # Optional assertion examples:
   # assertions = [
   #   {
-  #     assertion = builtins.hasAttr "webdav-password" config.age.secrets;
-  #     message = "webdav-password secret not defined for thinkbook.";
+  #     assertion = config.filesystems.webdav.mounts.fnos.encryptedPasswordFile != null;
+  #     message = "WebDAV password file not defined for thinkbook.";
   #   }
   # ];
 

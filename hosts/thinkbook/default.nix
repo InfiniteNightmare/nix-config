@@ -22,7 +22,6 @@ in
     ../../modules/container
     ../../modules/btrfs-snapshots
     ../../modules/zju-connect
-    ../../secrets
     ./secrets.nix
     inputs.agenix.nixosModules.default
   ];
@@ -351,11 +350,12 @@ in
 
   filesystems.webdav = {
     enable = true;
+    identityPaths = [ "/home/${userName}/.ssh/id_ed25519" ];
     mounts = {
       fnos = {
         url = "http://10.214.131.20:5005";
         username = userName;
-        secret = "webdav-password";
+        encryptedPasswordFile = ../../secrets/webdav-password.age;
         mountPoint = "/mnt/fnos";
         readOnly = false;
         cache.sizeMiB = 5000;
