@@ -17,8 +17,6 @@ in
       source = ./nushell;
       recursive = true;
     };
-
-    # ".config/zellij/config.kdl".source = ./zellij.kdl;
   };
 
   programs = {

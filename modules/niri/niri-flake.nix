@@ -144,14 +144,10 @@ in
     # Spawn at startup
     spawn-at-startup = [
       { argv = [ "noctalia" ]; }
-      { argv = [ "fcitx5" ]; }
-      { argv = [ "sunsetr" ]; }
       { argv = [ "xwayland-satellite" ]; }
-      { sh = "wl-paste --watch cliphist store"; }
       { sh = "udiskie -s"; }
       { sh = "foot --server"; }
       { sh = "keepassxc --minimized"; }
-      { argv = [ "cherry-studio" ]; }
       # {
       # sh = ''mpvpaper -p -n 600 -o "--shuffle --no-audio --hwdec=auto-safe --vf=fps=30 --panscan=1.0" eDP-1 /data/Videos'';
       # }

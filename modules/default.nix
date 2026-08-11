@@ -127,7 +127,6 @@ in
 
     # clipboard
     wl-clipboard
-    cliphist
 
     # swaynotificationcenter
 
@@ -152,7 +151,6 @@ in
 
     fluent-reader
 
-    zed-editor
     vscode
     uv
 

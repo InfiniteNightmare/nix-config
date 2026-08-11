@@ -6,9 +6,6 @@
     enable = true;
     fcitx5.waylandFrontend = true;
     fcitx5.addons = with pkgs; [
-      # for flypy chinese input method
-      fcitx5-rime
-      # needed enable rime using configtool after installed
       qt6Packages.fcitx5-configtool
       qt6Packages.fcitx5-chinese-addons
       fcitx5-mozc # Japanese input method
