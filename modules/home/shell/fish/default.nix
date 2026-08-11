@@ -1,6 +1,6 @@
 _:
 let
-  proxySettings = import ../../proxy/settings.nix;
+  proxySettings = import ../../../../lib/proxy-settings.nix;
 in
 {
   # Fish shell configuration separated from the generic shell module.

@@ -39,8 +39,10 @@ Since this is a system configuration repo, "tests" are primarily build checks an
 *   **`hosts/`**: Contains machine-specific configurations.
     *   `hosts/<hostname>/default.nix`: The main configuration file for a specific machine.
     *   `hosts/<hostname>/hardware-configuration.nix`: Hardware scan (do not edit manually usually).
-*   **`modules/`**: reusable NixOS or Home Manager modules.
-    *   Prefer creating new logic in `modules/` and importing it in `hosts/` rather than writing inline config in `hosts/`.
+*   **`modules/nixos/`**: reusable system-level NixOS modules.
+*   **`modules/home/`**: Home Manager modules grouped by user-facing feature.
+*   **`lib/`**: shared Nix values that are not modules themselves.
+    *   Prefer creating new logic in the appropriate module tree and importing it in `hosts/` rather than writing inline config in `hosts/`.
 *   **`secrets/`**: Encrypted secrets managed by `agenix`.
 
 ## 3. Code Style & Conventions

@@ -54,7 +54,7 @@
         };
         modules = [
           ./hosts/thinkbook
-          ./modules/home-manager.nix
+          ./modules/nixos/home-manager.nix
 
           inputs.nixos-hardware.nixosModules.common-cpu-amd
           inputs.nixos-hardware.nixosModules.common-gpu-amd

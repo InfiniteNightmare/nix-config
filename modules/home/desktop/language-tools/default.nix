@@ -41,7 +41,7 @@ in
   # /home is mounted so the user's SSH identity is available across reboots.
   age.identityPaths = lib.mkDefault [ "${config.home.homeDirectory}/.ssh/id_ed25519" ];
   age.secrets.minimax-env = {
-    file = ../../secrets/minimax-env.age;
+    file = ../../../../secrets/minimax-env.age;
     mode = "0400";
   };
 

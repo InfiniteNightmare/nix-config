@@ -26,10 +26,13 @@ generation.
 
 - `flake.nix` defines the `thinkbook` NixOS configuration.
 - `hosts/thinkbook/` contains hardware- and host-specific settings.
-- `modules/` contains reusable NixOS and Home Manager modules.
+- `modules/nixos/` contains reusable system-level NixOS modules.
+- `modules/home/` contains Home Manager modules, grouped by user-facing feature.
+- `lib/` contains shared Nix values that are not modules themselves.
 - `secrets/` contains only age-encrypted data; plaintext credentials do not
   belong in this repository.
-- `scripts/` contains the cleanup helpers packaged by `modules/boot-cleanup.nix`.
+- `scripts/` contains the cleanup helpers packaged by
+  `modules/nixos/boot-cleanup.nix`.
 
 Home Manager secrets are decrypted after the user's home directory is mounted.
 The system WebDAV automount instead decrypts its encrypted password on demand,

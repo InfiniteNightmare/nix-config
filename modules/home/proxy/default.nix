@@ -5,7 +5,7 @@
   ...
 }:
 let
-  proxySettings = import ./settings.nix;
+  proxySettings = import ../../../lib/proxy-settings.nix;
   profileScript = "${config.home.homeDirectory}/.local/share/io.github.clash-verge-rev.clash-verge-rev/profiles/sN9eG16QuHvB.js";
   backupScript = "${config.home.homeDirectory}/.config/proxy/ai-us-clash-enhance.js";
   renderClashProfile = pkgs.writeShellApplication {
@@ -58,7 +58,7 @@ in
   # available. System activation runs too early to read the user's SSH key.
   age.identityPaths = [ "${config.home.homeDirectory}/.ssh/id_ed25519" ];
   age.secrets.clash-vps-client = {
-    file = ../../secrets/clash-vps-client.age;
+    file = ../../../secrets/clash-vps-client.age;
     mode = "0400";
   };
 

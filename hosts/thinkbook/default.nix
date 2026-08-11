@@ -11,17 +11,17 @@
 
 let
   niriPackage = inputs.niri.packages.${pkgs.stdenv.hostPlatform.system}.niri-unstable;
-  proxySettings = import ../../modules/proxy/settings.nix;
+  proxySettings = import ../../lib/proxy-settings.nix;
 in
 {
   imports = [
     ./hardware-configuration.nix
     ./locale.nix
-    ../../modules/windows-fonts.nix
-    ../../modules/boot-cleanup.nix
-    ../../modules/filesystems/webdav.nix
-    ../../modules/container
-    ../../modules/zju-connect
+    ../../modules/nixos/windows-fonts.nix
+    ../../modules/nixos/boot-cleanup.nix
+    ../../modules/nixos/webdav.nix
+    ../../modules/nixos/containers.nix
+    ../../modules/nixos/zju-connect.nix
     inputs.agenix.nixosModules.default
   ];
 

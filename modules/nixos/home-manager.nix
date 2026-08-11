@@ -18,7 +18,7 @@
 
     users.${userName} = {
       imports = [
-        ./default.nix
+        ../home
         inputs.agenix.homeManagerModules.default
         inputs.stylix.homeModules.stylix
         inputs.zen-browser.homeModules.default

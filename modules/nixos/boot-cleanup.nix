@@ -45,7 +45,7 @@ let
     export GC_OPTIONS=${lib.escapeShellArg config.nix.gc.options}
     export MIN_FREE_MIB=${toString cfg.minFreeMiB}
 
-    exec ${pkgs.runtimeShell} ${../scripts/nixos-boot-clean} "$@"
+    exec ${pkgs.runtimeShell} ${../../scripts/nixos-boot-clean} "$@"
   '';
 
   cleanSwitch = pkgs.writeShellScriptBin "nixos-clean-switch" ''
@@ -59,7 +59,7 @@ let
     export NIXOS_REBUILD=/run/current-system/sw/bin/nixos-rebuild
     export BOOT_CLEAN=${bootClean}/bin/nixos-boot-clean
 
-    exec ${pkgs.runtimeShell} ${../scripts/nixos-clean-switch} "$@"
+    exec ${pkgs.runtimeShell} ${../../scripts/nixos-clean-switch} "$@"
   '';
 in
 {

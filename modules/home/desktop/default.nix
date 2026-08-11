@@ -5,7 +5,8 @@ let
 in
 {
   imports = [
-    ./niri-flake.nix
+    ./language-tools
+    ./niri.nix
     ./noctalia.nix
     ./wallhaven-wallpaper.nix
   ];
