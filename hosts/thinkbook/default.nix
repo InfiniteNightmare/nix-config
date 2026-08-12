@@ -56,6 +56,7 @@ in
 
   networking = {
     hostName = "nixos";
+    hosts."10.214.131.20" = [ "fnos-lan.charname.fnos.net" ];
     networkmanager = {
       enable = true;
       ensureProfiles.profiles.wired-10-214-104 = {
@@ -344,7 +345,7 @@ in
     identityPaths = [ "/home/${userName}/.ssh/id_ed25519" ];
     mounts = {
       fnos = {
-        url = "http://10.214.131.20:5005";
+        url = "https://fnos-lan.charname.fnos.net:5006";
         username = userName;
         encryptedPasswordFile = ../../secrets/webdav-password.age;
         mountPoint = "/mnt/fnos";
