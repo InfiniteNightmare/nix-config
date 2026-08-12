@@ -177,9 +177,10 @@ in
     programs.fuse.userAllowOther = true;
     environment.systemPackages = [ pkgs.rclone ];
 
-    # Create mount points and cache directories
+    # Automount units create their own mount points. Avoid touching those paths
+    # from tmpfiles, which would traverse autofs and produce noisy warnings.
     systemd.tmpfiles.rules =
-      (map (nm: "d ${nm.mp} 0755 root root -") normalizedMounts)
+      (map (nm: "d ${nm.mp} 0755 root root -") (lib.filter (nm: !nm.m.automount) normalizedMounts))
       ++ (map (nm: "d ${nm.runConfigDir} 0750 root root -") normalizedMounts)
       ++ (map (nm: "d ${nm.cacheDir} 0700 root root -") (
         lib.filter (nm: nm.cacheDir != null) normalizedMounts
