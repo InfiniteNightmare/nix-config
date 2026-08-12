@@ -218,7 +218,11 @@ in
               RAW_PASS="$(${pkgs.rage}/bin/rage -d ${identityArgs} ${lib.escapeShellArg nm.encryptedPasswordPath})"
             ''}
 
-            OBS_PASS=$(${pkgs.rclone}/bin/rclone --config /dev/null obscure "$RAW_PASS")
+            OBS_PASS="$(
+              printf '%s\n' "$RAW_PASS" \
+                | ${pkgs.rclone}/bin/rclone --config /dev/null obscure -
+            )"
+            unset RAW_PASS
 
             ${pkgs.coreutils}/bin/mkdir -p ${lib.escapeShellArg nm.runConfigDir}
 

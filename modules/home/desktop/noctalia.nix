@@ -423,10 +423,25 @@ in
       };
 
       lockscreen = {
+        enabled = true;
+        lock_before_suspend = true;
         blurred_desktop = false;
         blur_intensity = 0.5;
         tint_intensity = 0.3;
         wallpaper = "";
+      };
+
+      idle.behavior = {
+        lock = {
+          timeout = 600;
+          action = "lock";
+          enabled = true;
+        };
+        "screen-off" = {
+          timeout = 660;
+          action = "screen_off";
+          enabled = true;
+        };
       };
 
       desktop_widgets = {

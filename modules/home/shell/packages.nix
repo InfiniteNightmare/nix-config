@@ -6,7 +6,7 @@
     zip
     xz
     unzip
-    p7zip
+    pkgs._7zip-zstd
     pigz
     unrar
 

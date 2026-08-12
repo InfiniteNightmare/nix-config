@@ -232,9 +232,18 @@ in
     };
     greetd = {
       enable = true;
-      settings.default_session = {
-        command = "${niriPackage}/bin/niri-session";
-        user = userName;
+      useTextGreeter = true;
+      settings = {
+        # Start the normal user session once at boot. Keeping the desktop in
+        # default_session makes logind classify it as a greeter session.
+        initial_session = {
+          command = "${niriPackage}/bin/niri-session";
+          user = userName;
+        };
+        default_session = {
+          command = "${pkgs.greetd}/bin/agreety --cmd ${niriPackage}/bin/niri-session";
+          user = "greeter";
+        };
       };
     };
     pipewire = {
@@ -265,6 +274,9 @@ in
     };
     printing = {
       enable = true;
+      # The existing printer queue remains available without a permanent
+      # remote-printer discovery daemon.
+      browsed.enable = false;
       drivers = with pkgs; [
         gutenprint
         hplipWithPlugin
@@ -275,11 +287,6 @@ in
       nssmdns4 = true;
       openFirewall = true;
     };
-    udev.extraRules = ''
-      SUBSYSTEM=="platform", KERNEL=="VPC2004:*", DRIVER=="ideapad_acpi", ACTION=="add", ATTR{conservation_mode}="1"
-      SUBSYSTEM=="platform", KERNEL=="VPC2004:*", DRIVER=="ideapad_acpi", ACTION=="change", ATTR{conservation_mode}="1"
-    '';
-
     # TLP 电源管理配置
     tlp = {
       enable = true;
@@ -317,9 +324,12 @@ in
         WIFI_PWR_ON_AC = "off";
         WIFI_PWR_ON_BAT = "on";
 
-        # 电池保养：已启用 conservation_mode，不使用 TLP 充电阈值以避免冲突
-        # START_CHARGE_THRESH_BAT0 = 40;
-        # STOP_CHARGE_THRESH_BAT0 = 80;
+        # ThinkBooks expose a fixed Long_Life charging mode. Let TLP apply it
+        # after its other startup settings instead of writing the deprecated
+        # conservation_mode sysfs attribute from an early udev rule.
+        START_CHARGE_THRESH_BAT0 = 0;
+        STOP_CHARGE_THRESH_BAT0 = 1;
+        RESTORE_THRESHOLDS_ON_BAT = 1;
       };
     };
   };

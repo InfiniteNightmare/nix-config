@@ -17,11 +17,11 @@ let
 
   zjuConnect = pkgs.stdenvNoCC.mkDerivation (finalAttrs: {
     pname = "zju-connect";
-    version = "1.1.1";
+    version = "1.3.0";
 
     src = pkgs.fetchurl {
       url = "https://github.com/Mythologyli/zju-connect/releases/download/v${finalAttrs.version}/zju-connect-linux-amd64.zip";
-      hash = "sha256-hhr4cjoZkBmW9mdoU4+17yu9bMuNFOsbF8AJB5SFxdE=";
+      hash = "sha256-PgqOUXtreAw/dp+9NzmWYHVLzPSc1mZ0nTPgu5LCpeI=";
     };
 
     nativeBuildInputs = [ pkgs.unzip ];

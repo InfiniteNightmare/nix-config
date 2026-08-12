@@ -12,6 +12,12 @@ in
     xcur2png
   ];
 
+  # Keep the printer available without starting a tray applet on every login.
+  xdg.configFile."autostart/print-applet.desktop".text = ''
+    [Desktop Entry]
+    Hidden=true
+  '';
+
   services.wallhavenWallpaper = {
     enable = true;
     directory = wallpaperDirectory;
