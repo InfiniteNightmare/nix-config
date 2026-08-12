@@ -126,6 +126,9 @@ in
 
   nixpkgs.config.allowUnfree = true;
 
+  # This host is managed exclusively through the flake lock file.
+  nix.channel.enable = false;
+
   nix.settings = {
     experimental-features = [
       "nix-command"
