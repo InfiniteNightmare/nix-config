@@ -38,6 +38,10 @@ log() {
   printf 'nixos-boot-clean: %s\n' "$*"
 }
 
+warn() {
+  printf 'nixos-boot-clean: warning: %s\n' "$*" >&2
+}
+
 die() {
   printf 'nixos-boot-clean: error: %s\n' "$*" >&2
   exit 1
@@ -241,7 +245,6 @@ calculate_target_keep() {
     fi
   fi
 
-  log "keeping ${TARGET_KEEP} existing system generation(s)"
 }
 
 trim_system_generations() {
@@ -262,7 +265,7 @@ trim_system_generations() {
 
   if ! generations_output=$(nix-env --list-generations -p "${SYSTEM_PROFILE}" 2>&1); then
     if (( DRY_RUN )); then
-      log "cannot list ${SYSTEM_PROFILE}; skipping system generation dry-run: ${generations_output}"
+      warn "cannot list ${SYSTEM_PROFILE}; skipping system generation dry-run: ${generations_output}"
       return
     fi
     die "cannot list ${SYSTEM_PROFILE}: ${generations_output}"
@@ -284,7 +287,6 @@ trim_system_generations() {
   fi
 
   if (( ${#generations[@]} <= TARGET_KEEP )); then
-    log "system profile already has ${#generations[@]} generation(s)"
     protect_from=0
   else
     protect_from=$((${#generations[@]} - TARGET_KEEP))
@@ -333,12 +335,11 @@ trim_system_generations() {
   done
 
   if (( ${#delete_generations[@]} == 0 )); then
-    log "no system generations selected for deletion"
     return
   fi
 
   log "deleting system generation(s): ${delete_generations[*]}"
-  run nix-env --delete-generations -p "${SYSTEM_PROFILE}" "${delete_generations[@]}"
+  run nix-env --quiet --delete-generations -p "${SYSTEM_PROFILE}" "${delete_generations[@]}"
 }
 
 collect_profile_boot_files() {
@@ -359,7 +360,7 @@ collect_profile_boot_files() {
     fi
 
     system=$(readlink -e -- "${generation_link}") || {
-      log "warning: cannot resolve retained generation ${generation}; boot cleanup will fail closed"
+      warn "cannot resolve retained generation ${generation}; boot cleanup will fail closed"
       return 0
     }
     systems=("${system}")
@@ -367,7 +368,7 @@ collect_profile_boot_files() {
       for candidate in "${generation_link}"/specialisation/*; do
         [[ -e ${candidate} ]] || continue
         system=$(readlink -e -- "${candidate}") || {
-          log "warning: cannot resolve a specialisation in generation ${generation}; boot cleanup will fail closed"
+          warn "cannot resolve a specialisation in generation ${generation}; boot cleanup will fail closed"
           return 0
         }
         systems+=("${system}")
@@ -387,7 +388,7 @@ collect_profile_boot_files() {
           fi
         done
         if (( ! matched )); then
-          log "warning: cannot map generation ${generation} ${artifact}; boot cleanup will fail closed"
+          warn "cannot map generation ${generation} ${artifact}; boot cleanup will fail closed"
           return 0
         fi
       done
@@ -395,7 +396,7 @@ collect_profile_boot_files() {
   done
 
   if (( ! saw_generation )); then
-    log "warning: no retained system generations were found; boot cleanup will fail closed"
+    warn "no retained system generations were found; boot cleanup will fail closed"
     return 0
   fi
   PROFILE_BOOT_MAPPING_READY=1
@@ -498,16 +499,17 @@ trim_boot_files() {
     log "boot menu files were not parsed; retained generation closures remain authoritative"
   fi
   if (( ! PROFILE_BOOT_MAPPING_READY )); then
-    log "could not map every retained generation; only temporary files will be removed"
+    warn "could not map every retained generation; only temporary files will be removed"
   fi
 
   if (( ${#delete_files[@]} == 0 )); then
-    log "no stale boot files selected for deletion"
     return
   fi
 
-  log "deleting ${#delete_files[@]} stale boot file(s):"
-  printf '  %s\n' "${delete_files[@]}"
+  log "deleting ${#delete_files[@]} stale boot file(s)"
+  if (( DRY_RUN )); then
+    printf '  %s\n' "${delete_files[@]}"
+  fi
   run rm -f -- "${delete_files[@]}"
 }
 
@@ -520,10 +522,8 @@ collect_garbage() {
 
   if [[ -n ${GC_OPTIONS} ]]; then
     read -r -a gc_args <<<"${GC_OPTIONS}"
-    log "running nix-collect-garbage ${GC_OPTIONS}"
     run nix-collect-garbage "${gc_args[@]}"
   else
-    log "running nix-collect-garbage"
     run nix-collect-garbage
   fi
 }
@@ -538,16 +538,15 @@ fi
 
 calculate_target_keep
 
-if (( FOR_SWITCH )); then
-  log "pre-switch cleanup may invalidate older boot menu entries until switch completes"
+if (( FOR_SWITCH )) && [[ ${NIXOS_CLEAN_SWITCH_LOCK_HELD:-0} != 1 ]]; then
+  warn "pre-switch cleanup may invalidate older boot menu entries until switch completes"
 fi
 
 if (( ! BOOT_ONLY )); then
   trim_system_generations
   if [[ -n ${GENERATION_SNAPSHOT} ]]; then
-    log "pruning managed snapshots whose system generations no longer exist"
     if ! run "${GENERATION_SNAPSHOT}" prune "${SYSTEM_PROFILE}"; then
-      log "warning: managed snapshot pruning was incomplete; generations remain authoritative"
+      warn "managed snapshot pruning was incomplete; generations remain authoritative"
     fi
   fi
 fi
@@ -557,5 +556,3 @@ if (( ! GENERATIONS_ONLY )); then
 fi
 
 collect_garbage
-
-log "done"

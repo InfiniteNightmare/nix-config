@@ -29,6 +29,10 @@ log() {
   printf 'nixos-clean-switch: %s\n' "$*"
 }
 
+warn() {
+  printf 'nixos-clean-switch: warning: %s\n' "$*" >&2
+}
+
 die() {
   printf 'nixos-clean-switch: error: %s\n' "$*" >&2
   exit 1
@@ -166,7 +170,7 @@ remove_failed_target_generations() {
   profile_target=$(readlink -e -- "${SYSTEM_PROFILE}" 2>/dev/null || true)
   runtime_target=$(readlink -e -- "${CURRENT_SYSTEM}" 2>/dev/null || true)
   if [[ ${profile_target} != "${ACTIVE_PROFILE_PATH}" || ${runtime_target} != "${ACTIVE_RUNTIME_PATH}" ]]; then
-    log "warning: source generation mapping is not stable; leaving failed target generations in place"
+    warn "source generation mapping is not stable; leaving failed target generations in place"
     return 0
   fi
 
@@ -188,10 +192,10 @@ remove_failed_target_generations() {
   if nix-env --delete-generations -p "${SYSTEM_PROFILE}" "${failed_generations[@]}"; then
     log "removed failed target generation(s): ${failed_generations[*]}"
     if ! "${ACTIVE_RUNTIME_PATH}/bin/switch-to-configuration" boot; then
-      log "warning: failed to refresh the boot menu after removing the failed generation"
+      warn "failed to refresh the boot menu after removing the failed generation"
     fi
   else
-    log "warning: failed target generation(s) remain: ${failed_generations[*]}"
+    warn "failed target generation(s) remain: ${failed_generations[*]}"
   fi
 }
 
@@ -233,8 +237,7 @@ if [[ ! -x ${NIXOS_REBUILD} ]]; then
   fi
 fi
 
-log "building the target configuration once"
-system_path=$("${NIXOS_REBUILD}" build --no-reexec --no-link --flake "${FLAKE_REF}" "$@")
+system_path=$("${NIXOS_REBUILD}" build --quiet --no-reexec --no-link --flake "${FLAKE_REF}" "$@")
 
 if [[ ! -x ${system_path}/bin/switch-to-configuration ]]; then
   printf 'nixos-clean-switch: error: build returned an invalid system path: %s\n' "${system_path}" >&2
@@ -249,25 +252,20 @@ load_active_generation
 current_profile_path=$(readlink -e -- "${SYSTEM_PROFILE}" 2>/dev/null || true)
 if [[ ${system_path} == "${ACTIVE_RUNTIME_PATH}" && ${current_profile_path} == "${system_path}" ]]; then
   if [[ -n ${GENERATION_SNAPSHOT} ]]; then
-    log "ensuring generation ${ACTIVE_GENERATION} has an immutable checkpoint"
     "${GENERATION_SNAPSHOT}" create "${ACTIVE_GENERATION}" "${ACTIVE_PROFILE_PATH}"
   fi
-  log "the target configuration is already active; running normal cleanup"
   "${BOOT_CLEAN}"
   exit 0
 fi
 
 if [[ -n ${GENERATION_SNAPSHOT} ]]; then
   [[ -x ${GENERATION_SNAPSHOT} ]] || die "generation snapshot helper is not executable: ${GENERATION_SNAPSHOT}"
-  log "ensuring source generation ${ACTIVE_GENERATION} has an immutable checkpoint"
   "${GENERATION_SNAPSHOT}" create "${ACTIVE_GENERATION}" "${ACTIVE_PROFILE_PATH}"
 fi
 
-log "running pre-switch cleanup"
 "${BOOT_CLEAN}" --for-switch
 record_profile_generations
 
-log "switching to the pre-built configuration ${system_path}"
 if ! "${NIXOS_REBUILD}" switch --no-reexec --store-path "${system_path}" "$@"; then
   recover_source_generation "target activation returned an error"
 fi
@@ -280,17 +278,15 @@ fi
 
 load_target_generation
 if [[ -x ${TARGET_GENERATION_SNAPSHOT} ]]; then
-  log "capturing the immutable checkpoint for generation ${TARGET_GENERATION}"
   if ! "${TARGET_GENERATION_SNAPSHOT}" create "${TARGET_GENERATION}" "${system_path}"; then
     die "generation ${TARGET_GENERATION} is active, but its checkpoint could not be created"
   fi
 elif [[ -n ${GENERATION_SNAPSHOT} ]]; then
-  log "target generation does not enable generation checkpoints; no target checkpoint was created"
+  warn "target generation does not enable generation checkpoints; no target checkpoint was created"
 fi
 
 if [[ -x ${TARGET_BOOT_CLEAN} ]]; then
-  log "running post-switch boot cleanup with the target configuration"
   "${TARGET_BOOT_CLEAN}" --boot-only
 else
-  log "target generation does not install nixos-boot-clean; skipping post-switch cleanup"
+  warn "target generation does not install nixos-boot-clean; skipping post-switch cleanup"
 fi

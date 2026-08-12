@@ -455,7 +455,6 @@ create_set() {
   if [[ -e ${final_dir} || -L ${final_dir} ]]; then
     validate_set "${final_dir}" 1 \
       || die "existing checkpoint failed validation: ${SET_KEY}"
-    log "reusing immutable checkpoint ${SET_KEY}"
     return 0
   fi
 
@@ -573,7 +572,6 @@ prune_sets() {
 
   mount_top_level
   [[ -e ${STORAGE_DIR} ]] || {
-    log "no managed snapshot storage exists"
     return 0
   }
   ensure_storage
