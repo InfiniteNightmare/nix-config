@@ -29,7 +29,9 @@ generation immediately after a successful switch. Managed sets use the exact
 system generation and store hash as their identity; a set is removed only after
 its matching system generation has been removed. Use `nixos-clean-switch` as
 the switch entry point so the two lifecycles remain paired. `/data` is
-intentionally excluded pending a verified backup and clean scrub.
+intentionally excluded because its data lifecycle is independent from NixOS
+system generations. It is checked by the monthly Btrfs scrub, but no automated
+off-device backup is configured.
 
 A checkpoint represents the mutable state when that generation was first
 adopted; it is not refreshed on later departures. This keeps the restore point
