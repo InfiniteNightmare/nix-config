@@ -22,6 +22,7 @@ in
 
   boot = {
     kernelPackages = pkgs.linuxPackages_zen;
+    resumeDevice = "/dev/disk/by-uuid/fac29ae7-61d6-4fd9-88cc-b5ab0c55517c";
     kernelParams = [
       "amd_pstate=active"
       "mem_sleep_default=deep"
@@ -359,14 +360,20 @@ in
     # xdgOpenUsePortal = true;
     extraPortals = with pkgs; [
       xdg-desktop-portal-termfilechooser
-      xdg-desktop-portal-wlr
       xdg-desktop-portal-gtk
     ];
-    config.common.default = [
-      "termfilechooser"
-      "wlr"
-      "gtk"
-    ];
+    # Keep Niri's upstream routing for screencast and desktop integration,
+    # while using the terminal chooser only for the FileChooser interface.
+    config.niri = {
+      default = [
+        "gnome"
+        "gtk"
+      ];
+      "org.freedesktop.impl.portal.Access" = "gtk";
+      "org.freedesktop.impl.portal.FileChooser" = "termfilechooser";
+      "org.freedesktop.impl.portal.Notification" = "gtk";
+      "org.freedesktop.impl.portal.Secret" = "gnome-keyring";
+    };
   };
 
   system.stateVersion = "25.05";
