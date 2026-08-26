@@ -198,12 +198,6 @@ in
       description = "Systemd calendar expression for scheduled downloads.";
     };
 
-    onBootSec = mkOption {
-      type = types.str;
-      default = "30s";
-      description = "Delay before the first boot-time download attempt.";
-    };
-
     randomizedDelaySec = mkOption {
       type = types.str;
       default = "5m";
@@ -237,7 +231,6 @@ in
       Unit.Description = "Schedule Wallhaven wallpaper downloads";
 
       Timer = {
-        OnBootSec = cfg.onBootSec;
         OnCalendar = cfg.onCalendar;
         Persistent = true;
         RandomizedDelaySec = cfg.randomizedDelaySec;

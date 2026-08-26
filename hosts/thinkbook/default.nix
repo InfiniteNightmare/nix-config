@@ -164,7 +164,7 @@ in
 
   nix.gc = {
     automatic = true;
-    dates = "weekly";
+    dates = "monthly";
     # System generations and their checkpoints are retired together by nixos-boot-clean.
     options = "";
   };
