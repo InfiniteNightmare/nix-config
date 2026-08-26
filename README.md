@@ -43,6 +43,8 @@ explicitly before that change.
 Choosing an older generation in GRUB rolls back the NixOS system closure only.
 Restoring mutable root or home data from a paired Btrfs set remains a separate,
 offline recovery operation; the wrapper never overwrites a live filesystem.
+Follow the fail-closed [offline generation checkpoint recovery runbook](docs/generation-checkpoint-recovery.md)
+to validate and restore the root/home pair without deleting the previous state.
 The snapshots remain on the same disk and are recovery checkpoints, not
 backups. Root and home are captured moments apart rather than as a
 cross-subvolume transaction, so applications that require transactional
