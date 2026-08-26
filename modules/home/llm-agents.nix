@@ -7,6 +7,8 @@ in
     opencode
     claude-code
     codex
+    chatgpt
+    dsh
     qoder-cli
     rtk
     herdr
