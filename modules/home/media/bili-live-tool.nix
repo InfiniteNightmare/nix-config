@@ -157,6 +157,18 @@ let
 
     nativeBuildInputs = [ pkgs.imagemagick ];
 
+    postPatch = ''
+      substituteInPlace main.py \
+        --replace-fail \
+          "# [Fix] Linux Qt backend: hide() 可能导致窗口无法恢复，用 minimize 代替" \
+          "# niri has no minimized state; hide there while preserving upstream elsewhere."
+
+      substituteInPlace main.py \
+        --replace-fail \
+          "                    window.minimize()" \
+          "                    (window.hide if os.environ.get('NIRI_SOCKET') else window.minimize)()"
+    '';
+
     installPhase = ''
             runHook preInstall
 
