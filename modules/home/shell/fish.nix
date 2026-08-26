@@ -1,6 +1,47 @@
-{ pkgs, ... }:
+{ config, pkgs, ... }:
 let
   proxySettings = import ../../../lib/proxy-settings.nix;
+  stylixColors = config.lib.stylix.colors.withHashtag;
+  fastfetchLogoColors = {
+    "1" = stylixColors.base0D;
+    "2" = stylixColors.base0C;
+    "3" = stylixColors.base0D;
+    "4" = stylixColors.base0C;
+    "5" = stylixColors.base0D;
+    "6" = stylixColors.base0C;
+  };
+  fastfetchDisplay = {
+    separator = "";
+    brightColor = false;
+    duration.abbreviation = true;
+    key = {
+      type = "string";
+      width = 9;
+    };
+    color = {
+      title = stylixColors.base0D;
+      keys = stylixColors.base0D;
+      separator = stylixColors.base03;
+      output = stylixColors.base05;
+    };
+  };
+  fastfetchOs = {
+    type = "os";
+    format = "{name} {version-id}";
+  };
+  fastfetchKernel = {
+    type = "kernel";
+    format = "{release}";
+  };
+  fastfetchMemory = {
+    type = "memory";
+    format = "{used} / {total}";
+  };
+  fastfetchBattery = {
+    type = "battery";
+    key = "Battery";
+    format = "{capacity} [{status}]";
+  };
 in
 {
   # Fish shell configuration separated from the generic shell module.
@@ -11,9 +52,77 @@ in
   # 4. 常用别名
 
   home.packages = with pkgs; [
-    fastfetch
     eza
   ];
+
+  programs.fastfetch = {
+    enable = true;
+    settings = {
+      # Package counting dominates the default startup time on NixOS, while
+      # version probing adds little value to a splash shown in every terminal.
+      general.detectVersion = false;
+      logo = {
+        type = "builtin";
+        source = "NixOS";
+        padding.right = 1;
+        color = fastfetchLogoColors;
+      };
+      display = fastfetchDisplay;
+      modules = [
+        "title"
+        "separator"
+        fastfetchOs
+        {
+          type = "host";
+          format = "{family}";
+        }
+        fastfetchKernel
+        "uptime"
+        "shell"
+        {
+          type = "terminal";
+          key = "Term";
+        }
+        {
+          type = "display";
+          key = "Display";
+          format = "{width}x{height} @ {refresh-rate} Hz";
+        }
+        "wm"
+        {
+          type = "cpu";
+          format = "{name}";
+        }
+        {
+          type = "gpu";
+          format = "{name}";
+        }
+        fastfetchMemory
+        {
+          type = "swap";
+          format = "{used} / {total}";
+        }
+        {
+          type = "disk";
+          key = "Root";
+          folders = "/";
+          format = "{size-used} / {size-total}";
+        }
+        {
+          type = "disk";
+          key = "Data";
+          folders = "/data";
+          format = "{size-used} / {size-total}";
+        }
+        {
+          type = "localip";
+          key = "Network";
+        }
+        fastfetchBattery
+        "colors"
+      ];
+    };
+  };
 
   programs.fish = {
     enable = true;
@@ -86,15 +195,10 @@ in
     '';
   };
 
-  # conf.d 脚本：fastfetch 只显示一次（与主 init 解耦）
+  # conf.d 脚本：每个新交互终端显示 fastfetch（与主 init 解耦）
   home.file.".config/fish/conf.d/fastfetch.fish".text = ''
-    if status is-interactive
-      if test "$TERM" != "dumb"; and type -q fastfetch
-        if not set -q __fastfetch_shown
-          fastfetch
-          set -g __fastfetch_shown 1
-        end
-      end
+    if status is-interactive; and isatty stdout; and test "$TERM" != "dumb"; and type -q fastfetch
+      command fastfetch
     end
   '';
 }
