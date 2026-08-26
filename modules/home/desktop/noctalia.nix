@@ -85,14 +85,18 @@ in
 
         session.actions = [
           {
-            action = "lock";
+            action = "command";
+            command = "${pkgs.systemd}/bin/systemctl hibernate";
             enabled = true;
+            glyph = "hibernate";
+            label = "休眠";
             shortcut = "1";
             variant = "default";
           }
           {
             action = "lock_and_suspend";
             enabled = true;
+            label = "挂起";
             shortcut = "2";
             variant = "default";
           }

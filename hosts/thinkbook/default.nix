@@ -26,6 +26,7 @@ in
     kernelParams = [
       "amd_pstate=active"
       "mem_sleep_default=deep"
+      "hibernate_compression_threads=6"
     ];
     loader = {
       grub = {
@@ -115,6 +116,14 @@ in
   # the service sandbox drops the privileges needed to clean /run/avahi-daemon.
   systemd.services.avahi-daemon.serviceConfig.ExecStartPre =
     "+${pkgs.coreutils}/bin/rm -f /run/avahi-daemon/pid";
+
+  systemd.tmpfiles.rules = [
+    # Keep the mounted data subvolume private to its owner.
+    "d /data 0700 ${userName} users -"
+    # Leave enough RAM for the kernel's hibernation snapshot workspace after
+    # device drivers freeze; the default image target was too large under load.
+    "w /sys/power/image_size - - - - 6442450944"
+  ];
 
   # services.blueman.enable = true;
 
@@ -296,6 +305,11 @@ in
     tlp = {
       enable = true;
       settings = {
+        # The current kernel ignores the deprecated vm.laptop_mode setting;
+        # clear TLP's inherited defaults to avoid the ineffective writes.
+        DISK_IDLE_SECS_ON_AC = "";
+        DISK_IDLE_SECS_ON_BAT = "";
+
         # CPU 性能调度
         CPU_SCALING_GOVERNOR_ON_AC = "performance";
         CPU_SCALING_GOVERNOR_ON_BAT = "powersave";
