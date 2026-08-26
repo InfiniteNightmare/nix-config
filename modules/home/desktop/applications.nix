@@ -24,15 +24,13 @@ in
     localsend
     freerdp
     remmina
-    rustdesk
+    # rustdesk
     czkawka
     wpsoffice-cn
     drawio
     qq
     wechat
     wemeet
-    feishu
-    taisei
     brave
     readest
   ];
