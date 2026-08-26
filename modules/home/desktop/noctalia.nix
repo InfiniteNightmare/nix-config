@@ -1,5 +1,6 @@
 {
   config,
+  inputs,
   lib,
   pkgs,
   ...
@@ -11,6 +12,9 @@ in
 {
   programs.noctalia = {
     enable = true;
+    systemd.enable = true;
+    # Build from the flake input so the derivation matches upstream Cachix.
+    package = inputs.noctalia.packages.${pkgs.stdenv.hostPlatform.system}.default;
     settings = {
       accessibility.ui_scale = 1.0;
 
@@ -29,7 +33,7 @@ in
         settings_show_advanced = true;
         show_location = true;
         app_icon_colorize = false;
-        launch_apps_as_systemd_services = false;
+        launch_apps_as_systemd_services = true;
         clipboard_enabled = true;
         clipboard_history_max_entries = 80;
         clipboard_confirm_clear_history = true;

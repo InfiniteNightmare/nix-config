@@ -9,8 +9,8 @@
   imports = [ inputs.home-manager.nixosModules.home-manager ];
 
   home-manager = {
-    # Noctalia still defines Home Manager-specific overlays, so it cannot safely
-    # share the system package set yet.
+    # Home Manager keeps its own package set so the per-user nixpkgs.config below
+    # stays effective.
     useGlobalPkgs = false;
     useUserPackages = true;
     extraSpecialArgs = {
@@ -22,7 +22,6 @@
         inputs.agenix.homeManagerModules.default
         inputs.stylix.homeModules.stylix
         inputs.zen-browser.homeModules.default
-        inputs.noctalia.homeModules.default
       ];
 
       nixpkgs.config.allowUnfree = true;

@@ -32,7 +32,6 @@ in
   programs.niri.settings = {
     # Environment variables
     environment = {
-      DISPLAY = ":0";
       ELECTRON_OZONE_PLATFORM_HINT = "auto";
       QT_QPA_PLATFORM = "wayland";
       QT_WAYLAND_DISABLE_WINDOWDECORATION = "1";
@@ -149,8 +148,6 @@ in
 
     # Spawn at startup
     spawn-at-startup = [
-      { argv = [ "noctalia" ]; }
-      { argv = [ "xwayland-satellite" ]; }
       { sh = "udiskie -s"; }
       { sh = "foot --server"; }
       { sh = "keepassxc --minimized"; }
