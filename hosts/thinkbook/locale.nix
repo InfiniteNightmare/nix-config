@@ -3,7 +3,11 @@
   # Select internationalisation properties.
   i18n = {
     defaultLocale = "en_US.UTF-8";
-    supportedLocales = [ "all" ];
+    supportedLocales = [
+      "en_US.UTF-8/UTF-8"
+      "ja_JP.UTF-8/UTF-8"
+      "zh_CN.UTF-8/UTF-8"
+    ];
     extraLocaleSettings = {
       LC_ADDRESS = "zh_CN.UTF-8";
       LC_IDENTIFICATION = "zh_CN.UTF-8";
