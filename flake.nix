@@ -43,12 +43,9 @@
     let
       system = "x86_64-linux";
       userName = "charname";
+      pkgs = nixpkgs.legacyPackages.${system};
       moduleFiles = import ./lib/module-files.nix { inherit (nixpkgs) lib; };
-    in
-    {
-      formatter.${system} = nixpkgs.legacyPackages.${system}.nixfmt-tree;
-
-      nixosConfigurations.thinkbook = nixpkgs.lib.nixosSystem {
+      thinkbook = nixpkgs.lib.nixosSystem {
         inherit system;
         specialArgs = {
           inherit inputs moduleFiles userName;
@@ -66,5 +63,52 @@
           inputs.niri.nixosModules.niri
         ];
       };
+    in
+    {
+      formatter.${system} = pkgs.nixfmt-tree;
+
+      checks.${system} = {
+        thinkbook = thinkbook.config.system.build.toplevel;
+
+        lifecycle-scripts =
+          pkgs.runCommand "nixos-lifecycle-scripts-check"
+            {
+              nativeBuildInputs = [
+                pkgs.bash
+                pkgs.coreutils
+                pkgs.findutils
+                pkgs.gawk
+                pkgs.gnugrep
+                pkgs.gnused
+                pkgs.jq
+                pkgs.shellcheck
+                pkgs.util-linux
+              ];
+            }
+            ''
+              bash -n \
+                ${./scripts/nixos-clean-switch} \
+                ${./scripts/nixos-boot-clean} \
+                ${./scripts/nixos-generation-snapshot} \
+                ${./tests/lifecycle-scripts/run-tests}
+
+              shellcheck \
+                ${./scripts/nixos-clean-switch} \
+                ${./scripts/nixos-boot-clean} \
+                ${./scripts/nixos-generation-snapshot} \
+                ${./tests/lifecycle-scripts/run-tests}
+
+              export LIFECYCLE_CLEAN_SWITCH=${./scripts/nixos-clean-switch}
+              export LIFECYCLE_BOOT_CLEAN=${./scripts/nixos-boot-clean}
+              export LIFECYCLE_GENERATION_SNAPSHOT=${./scripts/nixos-generation-snapshot}
+              export LIFECYCLE_VALID_SYSTEM_A=${pkgs.bash}
+              export LIFECYCLE_VALID_SYSTEM_B=${pkgs.jq}
+              bash ${./tests/lifecycle-scripts/run-tests}
+
+              touch "$out"
+            '';
+      };
+
+      nixosConfigurations.thinkbook = thinkbook;
     };
 }

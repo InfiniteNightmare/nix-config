@@ -1,0 +1,738 @@
+#!/usr/bin/env bash
+set -euo pipefail
+export LC_ALL=C
+
+CLEAN_SWITCH=${LIFECYCLE_CLEAN_SWITCH:-}
+BOOT_CLEAN=${LIFECYCLE_BOOT_CLEAN:-}
+GENERATION_SNAPSHOT=${LIFECYCLE_GENERATION_SNAPSHOT:-}
+VALID_SYSTEM_A=${LIFECYCLE_VALID_SYSTEM_A:-}
+VALID_SYSTEM_B=${LIFECYCLE_VALID_SYSTEM_B:-}
+
+if [[ -z ${CLEAN_SWITCH} || -z ${BOOT_CLEAN} || -z ${GENERATION_SNAPSHOT} ]]; then
+  repository_root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)
+  CLEAN_SWITCH=${CLEAN_SWITCH:-${repository_root}/scripts/nixos-clean-switch}
+  BOOT_CLEAN=${BOOT_CLEAN:-${repository_root}/scripts/nixos-boot-clean}
+  GENERATION_SNAPSHOT=${GENERATION_SNAPSHOT:-${repository_root}/scripts/nixos-generation-snapshot}
+fi
+
+if [[ -z ${VALID_SYSTEM_A} || -z ${VALID_SYSTEM_B} ]]; then
+  bash_executable=$(readlink -e -- "$(command -v bash)")
+  jq_executable=$(readlink -e -- "$(command -v jq)")
+  VALID_SYSTEM_A=$(dirname -- "$(dirname -- "${bash_executable}")")
+  VALID_SYSTEM_B=$(dirname -- "$(dirname -- "${jq_executable}")")
+fi
+
+TEST_ROOT=$(mktemp -d "${TMPDIR:-/tmp}/nixos-lifecycle-tests.XXXXXX")
+trap 'rm -rf -- "${TEST_ROOT}"' EXIT
+
+tests_run=0
+
+fail() {
+  printf 'not ok - %s\n' "$*" >&2
+  exit 1
+}
+
+assert_contains() {
+  local file=$1 expected=$2
+
+  if ! grep -F -- "${expected}" "${file}" >/dev/null; then
+    if [[ -r ${file} ]]; then
+      sed 's/^/  | /' "${file}" >&2
+    fi
+    fail "${file} does not contain: ${expected}"
+  fi
+}
+
+assert_not_contains() {
+  local file=$1 unexpected=$2
+
+  if grep -F -- "${unexpected}" "${file}" >/dev/null; then
+    fail "${file} unexpectedly contains: ${unexpected}"
+  fi
+}
+
+assert_exists() {
+  [[ -e $1 || -L $1 ]] || fail "expected path to exist: $1"
+}
+
+assert_absent() {
+  [[ ! -e $1 && ! -L $1 ]] || fail "expected path to be absent: $1"
+}
+
+expect_failure() {
+  local output=$1
+  shift
+
+  if "$@" >"${output}" 2>&1; then
+    fail "command unexpectedly succeeded: $*"
+  fi
+}
+
+run_test() {
+  local name=$1
+  shift
+
+  tests_run=$((tests_run + 1))
+  "$@"
+  printf 'ok %d - %s\n' "${tests_run}" "${name}"
+}
+
+make_executable() {
+  if [[ $(head -n 1 -- "$1") == '#!/usr/bin/env bash' ]]; then
+    sed -i "1c#!${BASH}" "$1"
+  fi
+  chmod 0755 -- "$1"
+}
+
+make_runtime_copy() {
+  local source=$1 destination=$2
+
+  cp -- "${source}" "${destination}"
+  make_executable "${destination}"
+}
+
+require_exact_source_line() {
+  local source=$1 expected=$2 label=$3 count
+
+  count=$(grep -Fxc -- "${expected}" "${source}" || true)
+  [[ ${count} -eq 1 ]] \
+    || fail "${label} source hook matched ${count} times instead of once"
+}
+
+make_root_test_copy() {
+  local source=$1 destination=$2 mode=$3
+
+  case "${mode}" in
+    clean-switch)
+      require_exact_source_line \
+        "${source}" \
+        "if [[ \${EUID} -ne 0 ]]; then" \
+        "clean-switch EUID gate"
+      require_exact_source_line \
+        "${source}" \
+        "  local system_path=\$1 root_dir=/run/nixos-clean-switch-gcroots" \
+        "clean-switch GC-root declaration"
+      ;;
+    generation-snapshot)
+      require_exact_source_line \
+        "${source}" \
+        "[[ \${EUID} -eq 0 ]] || die \"run this command as root\"" \
+        "generation-snapshot EUID gate"
+      require_exact_source_line \
+        "${source}" \
+        "mount_top_level() {" \
+        "generation-snapshot mount function"
+      ;;
+    *)
+      fail "unknown test-copy mode: ${mode}"
+      ;;
+  esac
+
+  awk '
+    /^if \[\[ \$\{EUID\} -ne 0 \]\]; then$/ {
+      print "if [[ ${LIFECYCLE_TEST_EUID:-${EUID}} -ne 0 ]]; then"
+      next
+    }
+    /^\[\[ \$\{EUID\} -eq 0 \]\] \|\| die "run this command as root"$/ {
+      print "[[ ${LIFECYCLE_TEST_EUID:-${EUID}} -eq 0 ]] || die \"run this command as root\""
+      next
+    }
+    /local system_path=\$1 root_dir=\/run\/nixos-clean-switch-gcroots/ {
+      sub("root_dir=/run/nixos-clean-switch-gcroots", "root_dir=${LIFECYCLE_TEST_GC_ROOT_DIR:-/run/nixos-clean-switch-gcroots}")
+    }
+    { print }
+    /^mount_top_level\(\) \{$/ {
+      print "  if [[ -n ${LIFECYCLE_TEST_MOUNT_DIR:-} ]]; then"
+      print "    MOUNT_DIR=${LIFECYCLE_TEST_MOUNT_DIR}"
+      print "    STORAGE_DIR=\"${MOUNT_DIR}/${SNAPSHOT_STORAGE_SUBVOLUME}\""
+      print "    MOUNTED=0"
+      print "    return 0"
+      print "  fi"
+    }
+  ' "${source}" >"${destination}"
+
+  case "${mode}" in
+    clean-switch)
+      grep -Fx "if [[ \${LIFECYCLE_TEST_EUID:-\${EUID}} -ne 0 ]]; then" "${destination}" >/dev/null \
+        || fail "clean-switch test EUID hook was not injected"
+      grep -F "root_dir=\${LIFECYCLE_TEST_GC_ROOT_DIR:-/run/nixos-clean-switch-gcroots}" "${destination}" >/dev/null \
+        || fail "clean-switch test GC-root hook was not injected"
+      ;;
+    generation-snapshot)
+      grep -Fx "[[ \${LIFECYCLE_TEST_EUID:-\${EUID}} -eq 0 ]] || die \"run this command as root\"" "${destination}" >/dev/null \
+        || fail "generation-snapshot test EUID hook was not injected"
+      grep -Fx "  if [[ -n \${LIFECYCLE_TEST_MOUNT_DIR:-} ]]; then" "${destination}" >/dev/null \
+        || fail "generation-snapshot test mount hook was not injected"
+      ;;
+    *)
+      fail "unknown test-copy mode after transformation: ${mode}"
+      ;;
+  esac
+  make_executable "${destination}"
+}
+
+make_nix_store_mock() {
+  local path=$1
+
+  cat >"${path}" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+printf 'nix-store|%s\n' "$*" >>"${COMMAND_LOG}"
+exit 0
+EOF
+  make_executable "${path}"
+}
+
+make_command_logger() {
+  local path=$1 label=$2
+
+  cat >"${path}" <<EOF
+#!/usr/bin/env bash
+set -euo pipefail
+printf '${label}|%s\\n' "\$*" >>"\${COMMAND_LOG}"
+EOF
+  make_executable "${path}"
+}
+
+make_system() {
+  local directory=$1 label=$2
+
+  install -d -m 0755 -- "${directory}/bin"
+  cat >"${directory}/bin/switch-to-configuration" <<EOF
+#!/usr/bin/env bash
+set -euo pipefail
+printf '${label}|%s\\n' "\$*" >>"\${COMMAND_LOG}"
+EOF
+  make_executable "${directory}/bin/switch-to-configuration"
+}
+
+make_profile() {
+  local directory=$1 generation=$2 system_path=$3
+
+  install -d -m 0755 -- "${directory}"
+  ln -s -- "${system_path}" "${directory}/system-${generation}-link"
+  ln -s -- "system-${generation}-link" "${directory}/system"
+}
+
+test_clean_switch_rejects_unsafe_arguments() {
+  local fixture="${TEST_ROOT}/clean-arguments" output argument
+
+  install -d -m 0755 -- "${fixture}"
+  make_root_test_copy "${CLEAN_SWITCH}" "${fixture}/nixos-clean-switch" clean-switch
+
+  for argument in \
+    --build-host=builder \
+    --rollback \
+    --profile-name=test \
+    --flake=.#other \
+    --store-path=/nix/store/example; do
+    output="${fixture}/$(printf '%s' "${argument}" | tr '/=.' '____').log"
+    expect_failure "${output}" env \
+      LIFECYCLE_TEST_EUID=0 \
+      NIXOS_CLEAN_SWITCH_LOCK_FILE="${fixture}/lock" \
+      "${fixture}/nixos-clean-switch" "${argument}"
+  done
+
+  assert_contains "${fixture}/--build-host_builder.log" "remote rebuild arguments are incompatible"
+  assert_contains "${fixture}/--rollback.log" "unsupported lifecycle-changing nixos-rebuild argument"
+  assert_contains "${fixture}/--profile-name_test.log" "alternate specialisations/profiles are incompatible"
+  assert_contains "${fixture}/--flake__#other.log" "the flake is fixed"
+  assert_contains "${fixture}/--store-path__nix_store_example.log" "configuration source overrides are unsupported"
+}
+
+test_clean_switch_noop_uses_source_helpers() {
+  local fixture="${TEST_ROOT}/clean-noop"
+  local active="${fixture}/active-system"
+  local profile_dir="${fixture}/profiles"
+  local fake_bin="${fixture}/bin"
+
+  install -d -m 0755 -- "${fake_bin}"
+  make_root_test_copy "${CLEAN_SWITCH}" "${fixture}/nixos-clean-switch" clean-switch
+  make_nix_store_mock "${fake_bin}/nix-store"
+  make_system "${active}" active-switch
+  make_profile "${profile_dir}" 10 "${active}"
+  ln -s -- "${active}" "${fixture}/current-system"
+  make_command_logger "${fixture}/snapshot" snapshot
+  make_command_logger "${fixture}/boot-clean" boot-clean
+
+  cat >"${fixture}/nixos-rebuild" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+printf 'rebuild|%s\n' "$*" >>"${COMMAND_LOG}"
+case "$1" in
+  build)
+    printf '%s\n' "${TARGET_SYSTEM}"
+    ;;
+  *)
+    exit 99
+    ;;
+esac
+EOF
+  make_executable "${fixture}/nixos-rebuild"
+
+  env \
+    PATH="${fake_bin}:${PATH}" \
+    COMMAND_LOG="${fixture}/commands.log" \
+    TARGET_SYSTEM="${active}" \
+    LIFECYCLE_TEST_EUID=0 \
+    LIFECYCLE_TEST_GC_ROOT_DIR="${fixture}/gcroots" \
+    NIXOS_CLEAN_SWITCH_LOCK_FILE="${fixture}/lock" \
+    SYSTEM_PROFILE="${profile_dir}/system" \
+    CURRENT_SYSTEM="${fixture}/current-system" \
+    NIXOS_REBUILD="${fixture}/nixos-rebuild" \
+    BOOT_CLEAN="${fixture}/boot-clean" \
+    GENERATION_SNAPSHOT="${fixture}/snapshot" \
+    "${fixture}/nixos-clean-switch"
+
+  assert_contains "${fixture}/commands.log" "rebuild|build --quiet --no-reexec --no-link --flake .#thinkbook"
+  assert_contains "${fixture}/commands.log" "snapshot|create 10 ${active}"
+  assert_contains "${fixture}/commands.log" "boot-clean|"
+  assert_not_contains "${fixture}/commands.log" "rebuild|switch"
+}
+
+test_clean_switch_prefers_target_helpers() {
+  local fixture="${TEST_ROOT}/clean-target-helpers"
+  local active="${fixture}/active-system"
+  local target="${fixture}/target-system"
+  local profile_dir="${fixture}/profiles"
+  local fake_bin="${fixture}/bin"
+
+  install -d -m 0755 -- "${fake_bin}" "${target}/sw/bin"
+  make_root_test_copy "${CLEAN_SWITCH}" "${fixture}/nixos-clean-switch" clean-switch
+  make_nix_store_mock "${fake_bin}/nix-store"
+  make_system "${active}" active-switch
+  make_system "${target}" target-switch
+  make_profile "${profile_dir}" 10 "${active}"
+  ln -s -- "${active}" "${fixture}/current-system"
+  make_command_logger "${fixture}/source-snapshot" source-snapshot
+  make_command_logger "${fixture}/source-boot-clean" source-boot-clean
+  make_command_logger "${target}/sw/bin/nixos-generation-snapshot" target-snapshot
+  make_command_logger "${target}/sw/bin/nixos-boot-clean" target-boot-clean
+
+  cat >"${fixture}/nixos-rebuild" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+printf 'rebuild|%s\n' "$*" >>"${COMMAND_LOG}"
+case "$1" in
+  build)
+    printf '%s\n' "${TARGET_SYSTEM}"
+    ;;
+  switch)
+    ln -s -- "${TARGET_SYSTEM}" "${SYSTEM_PROFILE}-11-link"
+    ln -sfn -- "system-11-link" "${SYSTEM_PROFILE}"
+    ln -sfn -- "${TARGET_SYSTEM}" "${CURRENT_SYSTEM}"
+    ;;
+  *)
+    exit 99
+    ;;
+esac
+EOF
+  make_executable "${fixture}/nixos-rebuild"
+
+  env \
+    PATH="${fake_bin}:${PATH}" \
+    COMMAND_LOG="${fixture}/commands.log" \
+    TARGET_SYSTEM="${target}" \
+    LIFECYCLE_TEST_EUID=0 \
+    LIFECYCLE_TEST_GC_ROOT_DIR="${fixture}/gcroots" \
+    NIXOS_CLEAN_SWITCH_LOCK_FILE="${fixture}/lock" \
+    SYSTEM_PROFILE="${profile_dir}/system" \
+    CURRENT_SYSTEM="${fixture}/current-system" \
+    NIXOS_REBUILD="${fixture}/nixos-rebuild" \
+    BOOT_CLEAN="${fixture}/source-boot-clean" \
+    GENERATION_SNAPSHOT="${fixture}/source-snapshot" \
+    "${fixture}/nixos-clean-switch"
+
+  assert_contains "${fixture}/commands.log" "source-snapshot|create 10 ${active}"
+  assert_contains "${fixture}/commands.log" "source-boot-clean|--for-switch"
+  assert_contains "${fixture}/commands.log" "target-snapshot|create 11 ${target}"
+  assert_contains "${fixture}/commands.log" "target-boot-clean|--boot-only"
+  assert_not_contains "${fixture}/commands.log" "source-snapshot|create 11"
+}
+
+test_clean_switch_failure_reactivates_source() {
+  local fixture="${TEST_ROOT}/clean-recovery" output
+  local active="${fixture}/active-system"
+  local target="${fixture}/target-system"
+  local profile_dir="${fixture}/profiles"
+  local fake_bin="${fixture}/bin"
+
+  install -d -m 0755 -- "${fake_bin}"
+  make_root_test_copy "${CLEAN_SWITCH}" "${fixture}/nixos-clean-switch" clean-switch
+  make_nix_store_mock "${fake_bin}/nix-store"
+  make_system "${active}" active-switch
+  make_system "${target}" target-switch
+  make_profile "${profile_dir}" 10 "${active}"
+  ln -s -- "${active}" "${fixture}/current-system"
+  make_command_logger "${fixture}/snapshot" snapshot
+  make_command_logger "${fixture}/boot-clean" boot-clean
+
+  cat >"${fixture}/nixos-rebuild" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+printf 'rebuild|%s\n' "$*" >>"${COMMAND_LOG}"
+case "$1" in
+  build)
+    printf '%s\n' "${TARGET_SYSTEM}"
+    ;;
+  switch)
+    ln -s -- "${TARGET_SYSTEM}" "${SYSTEM_PROFILE}-11-link"
+    exit 1
+    ;;
+  *)
+    exit 99
+    ;;
+esac
+EOF
+  make_executable "${fixture}/nixos-rebuild"
+
+  cat >"${fake_bin}/nix-env" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+printf 'nix-env|%s\n' "$*" >>"${COMMAND_LOG}"
+case "$1" in
+  --switch-generation)
+    generation=$2
+    ln -sfn -- "system-${generation}-link" "${SYSTEM_PROFILE}"
+    ;;
+  --delete-generations)
+    shift
+    while (( $# > 0 )); do
+      case "$1" in
+        -p)
+          shift 2
+          ;;
+        *)
+          rm -f -- "${SYSTEM_PROFILE}-$1-link"
+          shift
+          ;;
+      esac
+    done
+    ;;
+  *)
+    exit 99
+    ;;
+esac
+EOF
+  make_executable "${fake_bin}/nix-env"
+
+  output="${fixture}/output.log"
+  expect_failure "${output}" env \
+    PATH="${fake_bin}:${PATH}" \
+    COMMAND_LOG="${fixture}/commands.log" \
+    TARGET_SYSTEM="${target}" \
+    LIFECYCLE_TEST_EUID=0 \
+    LIFECYCLE_TEST_GC_ROOT_DIR="${fixture}/gcroots" \
+    NIXOS_CLEAN_SWITCH_LOCK_FILE="${fixture}/lock" \
+    SYSTEM_PROFILE="${profile_dir}/system" \
+    CURRENT_SYSTEM="${fixture}/current-system" \
+    NIXOS_REBUILD="${fixture}/nixos-rebuild" \
+    BOOT_CLEAN="${fixture}/boot-clean" \
+    GENERATION_SNAPSHOT="${fixture}/snapshot" \
+    "${fixture}/nixos-clean-switch"
+
+  assert_contains "${output}" "target switch failed; generation 10 was reactivated"
+  assert_contains "${fixture}/commands.log" "nix-env|--switch-generation 10 -p ${profile_dir}/system"
+  assert_contains "${fixture}/commands.log" "active-switch|switch"
+  assert_contains "${fixture}/commands.log" "nix-env|--delete-generations -p ${profile_dir}/system 11"
+  assert_contains "${fixture}/commands.log" "active-switch|boot"
+  assert_absent "${profile_dir}/system-11-link"
+  [[ $(readlink -e -- "${profile_dir}/system") == "${active}" ]] \
+    || fail "source system profile was not restored"
+}
+
+make_generation_list_mock() {
+  local path=$1
+
+  cat >"${path}" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+if [[ $1 == --list-generations ]]; then
+  printf '%s\n' "${GENERATION_LIST}"
+  exit 0
+fi
+printf 'unexpected nix-env invocation: %s\n' "$*" >&2
+exit 99
+EOF
+  make_executable "${path}"
+}
+
+test_boot_clean_pairs_generation_and_snapshot_prune() {
+  local fixture="${TEST_ROOT}/boot-paired-prune" output
+  local boot_clean_under_test="${fixture}/nixos-boot-clean"
+  local profile_dir="${fixture}/profiles"
+  local fake_bin="${fixture}/bin"
+  local gen1="${fixture}/system-1"
+  local gen2="${fixture}/system-2"
+  local gen3="${fixture}/system-3"
+  local gen4="${fixture}/system-4"
+
+  install -d -m 0755 -- "${fake_bin}" "${gen1}" "${gen2}" "${gen3}" "${gen4}" "${profile_dir}"
+  make_runtime_copy "${BOOT_CLEAN}" "${boot_clean_under_test}"
+  make_generation_list_mock "${fake_bin}/nix-env"
+  make_command_logger "${fixture}/snapshot" snapshot
+  ln -s -- "${gen1}" "${profile_dir}/system-1-link"
+  ln -s -- "${gen2}" "${profile_dir}/system-2-link"
+  ln -s -- "${gen3}" "${profile_dir}/system-3-link"
+  ln -s -- "${gen4}" "${profile_dir}/system-4-link"
+  ln -s -- "system-4-link" "${profile_dir}/system"
+  ln -s -- "${gen4}" "${fixture}/current-system"
+  ln -s -- "${gen2}" "${fixture}/booted-system"
+
+  output="${fixture}/output.log"
+  env \
+    PATH="${fake_bin}:${PATH}" \
+    GENERATION_LIST=$'1 2026-01-01\n2 2026-01-02\n3 2026-01-03\n4 2026-01-04' \
+    BOOT_MOUNT="${fixture}/missing-boot" \
+    SYSTEM_PROFILE="${profile_dir}/system" \
+    CURRENT_SYSTEM="${fixture}/current-system" \
+    BOOTED_SYSTEM="${fixture}/booted-system" \
+    CONFIGURATION_LIMIT=2 \
+    GC_OPTIONS='--max-freed 1048576' \
+    GENERATION_SNAPSHOT="${fixture}/snapshot" \
+    NIXOS_CLEAN_SWITCH_LOCK_FILE="${fixture}/lock" \
+    "${boot_clean_under_test}" --generations-only --dry-run >"${output}" 2>&1
+
+  assert_contains "${output}" "deleting system generation(s): 1"
+  assert_contains "${output}" "+ nix-env --quiet --delete-generations -p ${profile_dir}/system 1"
+  assert_contains "${output}" "+ ${fixture}/snapshot prune ${profile_dir}/system"
+  assert_contains "${output}" "+ nix-collect-garbage --max-freed 1048576"
+  assert_not_contains "${output}" "delete-generations -p ${profile_dir}/system 2"
+}
+
+test_boot_clean_fails_closed_on_unmapped_generation() {
+  local fixture="${TEST_ROOT}/boot-fail-closed" output
+  local boot_clean_under_test="${fixture}/nixos-boot-clean"
+  local boot="${fixture}/boot"
+  local profile_dir="${fixture}/profiles"
+  local fake_bin="${fixture}/bin"
+  local active="${fixture}/active-system"
+  local stale="${boot}/kernels/stale"
+  local temporary="${boot}/kernels/incomplete.tmp"
+
+  install -d -m 0755 -- "${fake_bin}" "${boot}/kernels" "${profile_dir}" "${active}"
+  make_runtime_copy "${BOOT_CLEAN}" "${boot_clean_under_test}"
+  make_generation_list_mock "${fake_bin}/nix-env"
+  cat >"${fake_bin}/mountpoint" <<'EOF'
+#!/usr/bin/env bash
+exit 0
+EOF
+  make_executable "${fake_bin}/mountpoint"
+
+  printf 'kernel-active\n' >"${active}/kernel"
+  printf 'initrd-active\n' >"${active}/initrd"
+  cp -- "${active}/kernel" "${boot}/kernels/kernel-active"
+  cp -- "${active}/initrd" "${boot}/kernels/initrd-active"
+  printf 'stale\n' >"${stale}"
+  printf 'partial\n' >"${temporary}"
+
+  ln -s -- "${fixture}/missing-system" "${profile_dir}/system-1-link"
+  ln -s -- "${active}" "${profile_dir}/system-2-link"
+  ln -s -- "system-2-link" "${profile_dir}/system"
+  ln -s -- "${active}" "${fixture}/current-system"
+  ln -s -- "${active}" "${fixture}/booted-system"
+
+  output="${fixture}/output.log"
+  env \
+    PATH="${fake_bin}:${PATH}" \
+    GENERATION_LIST=$'1 2026-01-01\n2 2026-01-02' \
+    BOOT_MOUNT="${boot}" \
+    SYSTEM_PROFILE="${profile_dir}/system" \
+    CURRENT_SYSTEM="${fixture}/current-system" \
+    BOOTED_SYSTEM="${fixture}/booted-system" \
+    CONFIGURATION_LIMIT=3 \
+    MIN_FREE_MIB=0 \
+    NIXOS_CLEAN_SWITCH_LOCK_FILE="${fixture}/lock" \
+    "${boot_clean_under_test}" --dry-run >"${output}" 2>&1
+
+  assert_contains "${output}" "cannot resolve retained generation 1; boot cleanup will fail closed"
+  assert_contains "${output}" "only temporary files will be removed"
+  assert_contains "${output}" "${temporary}"
+  assert_not_contains "${output}" "${stale}"
+}
+
+make_btrfs_mock() {
+  local path=$1
+
+  cat >"${path}" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+case "$1 $2" in
+  'subvolume show')
+    path=$3
+    [[ -d ${path} ]] || exit 1
+    case "${path##*/}" in
+      root)
+        printf 'UUID: 11111111-1111-1111-1111-111111111111\n'
+        ;;
+      home)
+        printf 'UUID: 22222222-2222-2222-2222-222222222222\n'
+        ;;
+      *)
+        printf 'UUID: 33333333-3333-3333-3333-333333333333\n'
+        ;;
+    esac
+    ;;
+  'property get')
+    printf 'ro=true\n'
+    ;;
+  'subvolume delete')
+    path=$4
+    printf 'delete|%s\n' "${path}" >>"${BTRFS_LOG}"
+    rmdir -- "${path}"
+    ;;
+  *)
+    printf 'unexpected btrfs invocation: %s\n' "$*" >&2
+    exit 99
+    ;;
+esac
+EOF
+  make_executable "${path}"
+}
+
+store_hash() {
+  local store_name=${1##*/}
+  printf '%s\n' "${store_name%%-*}"
+}
+
+write_manifest() {
+  local set_dir=$1 generation=$2 system_path=$3 hash
+
+  hash=$(store_hash "${system_path}")
+  install -d -m 0700 -- "${set_dir}/root" "${set_dir}/home"
+  cat >"${set_dir}/manifest.json" <<EOF
+{
+  "schema": 1,
+  "status": "complete",
+  "phase": "checkpoint",
+  "generation": ${generation},
+  "systemPath": "${system_path}",
+  "storeHash": "${hash}",
+  "createdAt": "2026-08-13T00:00:00Z",
+  "members": {
+    "root": {
+      "sourceSubvolume": "@",
+      "uuid": "11111111-1111-1111-1111-111111111111"
+    },
+    "home": {
+      "sourceSubvolume": "@home",
+      "uuid": "22222222-2222-2222-2222-222222222222"
+    }
+  }
+}
+EOF
+}
+
+prepare_snapshot_fixture() {
+  local fixture=$1
+
+  install -d -m 0755 -- "${fixture}/bin" "${fixture}/top/@nixos-snapshots" "${fixture}/profiles"
+  make_root_test_copy \
+    "${GENERATION_SNAPSHOT}" \
+    "${fixture}/nixos-generation-snapshot" \
+    generation-snapshot
+  make_btrfs_mock "${fixture}/bin/btrfs"
+}
+
+test_snapshot_rejects_unsafe_identity_and_members() {
+  local fixture="${TEST_ROOT}/snapshot-arguments" output
+
+  prepare_snapshot_fixture "${fixture}"
+
+  output="${fixture}/generation.log"
+  expect_failure "${output}" env \
+    PATH="${fixture}/bin:${PATH}" \
+    LIFECYCLE_TEST_EUID=0 \
+    SNAPSHOT_LOCK_FILE="${fixture}/lock" \
+    "${fixture}/nixos-generation-snapshot" create 0 "${VALID_SYSTEM_A}"
+  assert_contains "${output}" "invalid generation: 0"
+
+  output="${fixture}/members.log"
+  expect_failure "${output}" env \
+    PATH="${fixture}/bin:${PATH}" \
+    LIFECYCLE_TEST_EUID=0 \
+    SNAPSHOT_MEMBERS=$'root\t../root' \
+    SNAPSHOT_LOCK_FILE="${fixture}/lock" \
+    "${fixture}/nixos-generation-snapshot" list
+  assert_contains "${output}" "snapshot member root contains an unsafe relative path"
+}
+
+test_snapshot_prunes_orphan_as_a_pair() {
+  local fixture="${TEST_ROOT}/snapshot-paired-prune"
+  local storage profile retained_set orphan_set retained_hash orphan_hash
+
+  prepare_snapshot_fixture "${fixture}"
+  storage="${fixture}/top/@nixos-snapshots"
+  profile="${fixture}/profiles/system"
+  retained_hash=$(store_hash "${VALID_SYSTEM_A}")
+  orphan_hash=$(store_hash "${VALID_SYSTEM_B}")
+  retained_set="${storage}/g3-${retained_hash}"
+  orphan_set="${storage}/g2-${orphan_hash}"
+
+  ln -s -- "${VALID_SYSTEM_A}" "${profile}-3-link"
+  ln -s -- "system-3-link" "${profile}"
+  write_manifest "${retained_set}" 3 "${VALID_SYSTEM_A}"
+  write_manifest "${orphan_set}" 2 "${VALID_SYSTEM_B}"
+
+  env \
+    PATH="${fixture}/bin:${PATH}" \
+    BTRFS_LOG="${fixture}/btrfs.log" \
+    LIFECYCLE_TEST_EUID=0 \
+    LIFECYCLE_TEST_MOUNT_DIR="${fixture}/top" \
+    SNAPSHOT_LOCK_FILE="${fixture}/lock" \
+    SYSTEM_PROFILE="${profile}" \
+    "${fixture}/nixos-generation-snapshot" prune
+
+  assert_exists "${retained_set}/manifest.json"
+  assert_exists "${retained_set}/root"
+  assert_exists "${retained_set}/home"
+  assert_absent "${orphan_set}"
+  assert_contains "${fixture}/btrfs.log" "delete|${orphan_set}/root"
+  assert_contains "${fixture}/btrfs.log" "delete|${orphan_set}/home"
+  assert_not_contains "${fixture}/btrfs.log" "${retained_set}"
+  [[ $(wc -l <"${fixture}/btrfs.log") -eq 2 ]] \
+    || fail "orphan pruning did not delete exactly the paired root/home members"
+}
+
+test_snapshot_retains_invalid_manifest() {
+  local fixture="${TEST_ROOT}/snapshot-invalid-manifest" output
+  local storage profile invalid_set invalid_hash
+
+  prepare_snapshot_fixture "${fixture}"
+  storage="${fixture}/top/@nixos-snapshots"
+  profile="${fixture}/profiles/system"
+  invalid_hash=$(store_hash "${VALID_SYSTEM_B}")
+  invalid_set="${storage}/g2-${invalid_hash}"
+
+  ln -s -- "${VALID_SYSTEM_A}" "${profile}-3-link"
+  ln -s -- "system-3-link" "${profile}"
+  install -d -m 0700 -- "${invalid_set}/root" "${invalid_set}/home"
+  printf '{}\n' >"${invalid_set}/manifest.json"
+
+  output="${fixture}/output.log"
+  expect_failure "${output}" env \
+    PATH="${fixture}/bin:${PATH}" \
+    BTRFS_LOG="${fixture}/btrfs.log" \
+    LIFECYCLE_TEST_EUID=0 \
+    LIFECYCLE_TEST_MOUNT_DIR="${fixture}/top" \
+    SNAPSHOT_LOCK_FILE="${fixture}/lock" \
+    SYSTEM_PROFILE="${profile}" \
+    "${fixture}/nixos-generation-snapshot" prune
+
+  assert_contains "${output}" "leaving snapshot with failed validation in place"
+  assert_exists "${invalid_set}/manifest.json"
+  [[ ! -e ${fixture}/btrfs.log ]] || [[ ! -s ${fixture}/btrfs.log ]] \
+    || fail "invalid manifest caused a Btrfs delete attempt"
+}
+
+run_test "clean-switch rejects lifecycle/source overrides" test_clean_switch_rejects_unsafe_arguments
+run_test "clean-switch no-op uses the source generation helpers" test_clean_switch_noop_uses_source_helpers
+run_test "clean-switch successful activation prefers target helpers" test_clean_switch_prefers_target_helpers
+run_test "clean-switch failure reactivates the source and removes the failed generation" test_clean_switch_failure_reactivates_source
+run_test "boot-clean pairs generation deletion with snapshot pruning" test_boot_clean_pairs_generation_and_snapshot_prune
+run_test "boot-clean retains stale files when a generation cannot be mapped" test_boot_clean_fails_closed_on_unmapped_generation
+run_test "generation-snapshot rejects unsafe identity and member inputs" test_snapshot_rejects_unsafe_identity_and_members
+run_test "generation-snapshot removes orphan root/home members as one set" test_snapshot_prunes_orphan_as_a_pair
+run_test "generation-snapshot retains a set with an invalid manifest" test_snapshot_retains_invalid_manifest
+
+printf '1..%d\n' "${tests_run}"
