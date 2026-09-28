@@ -110,11 +110,11 @@ let
       cacheDir = if m.cache.enable then "${m.cache.baseDir}/${name}" else null;
       runConfigDir = "/run/rclone";
       runConfigPath = "${runConfigDir}/${name}.conf";
+      # Reference the encrypted file by path so Nix copies it to the store as a
+      # source file. Its content is raw binary (age payload) and cannot pass
+      # through a derivation attribute, which gets JSON-serialized at eval time.
       encryptedPasswordPath =
-        if m.encryptedPasswordFile == null then
-          null
-        else
-          pkgs.writeText "webdav-${name}-password.age" (builtins.readFile m.encryptedPasswordFile);
+        if m.encryptedPasswordFile == null then null else "${m.encryptedPasswordFile}";
 
       # Accept both `--flag` style and `flag` style options.
       normalizeMountOption = opt: if hasPrefix "--" opt then removePrefix "--" opt else opt;
