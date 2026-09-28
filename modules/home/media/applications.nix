@@ -4,7 +4,7 @@
     pwvucontrol
     crosspipe
     mpvpaper
-    splayer
+    splayer-next
     obs-studio
   ];
 }
