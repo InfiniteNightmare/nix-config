@@ -1,4 +1,7 @@
-{ pkgs, ... }:
+{
+  pkgs,
+  ...
+}:
 
 let
   externalUltrawideOutput = {
@@ -23,10 +26,10 @@ let
     ++ args;
 in
 {
-  home.packages = with pkgs; [
-    xwayland-satellite
-    udiskie
-    hyprpicker
+  home.packages = [
+    pkgs.xwayland-satellite
+    pkgs.udiskie
+    pkgs.hyprpicker
   ];
 
   programs.niri.settings = {
