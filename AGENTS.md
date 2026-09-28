@@ -84,4 +84,4 @@ Since this is a system configuration repo, "tests" are primarily build checks an
 ## 5. Specific Configuration Notes
 *   **Shell:** The user uses `fish`. Ensure shell aliases/init scripts are compatible or configured via `programs.fish`.
 *   **Window Manager:** `niri` (Wayland) is the primary environment.
-*   **Editor:** `helix` (`hx`) is the default editor variable, but VS Code and Neovim are also present.
+*   **Editor:** `nvim` is the default editor variable, configured declaratively via nixvim (`programs.nixvim` in `modules/home/editors/neovim.nix`, themed by the stylix nixvim target); VS Code and Zed are also present.

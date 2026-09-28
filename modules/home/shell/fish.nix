@@ -134,7 +134,7 @@ in
       gs = "git status";
       gl = "git pull";
       gp = "git push";
-      v = "hx";
+      v = "nvim";
     };
 
     interactiveShellInit = ''

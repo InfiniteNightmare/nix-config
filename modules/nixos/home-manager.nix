@@ -20,6 +20,7 @@
     users.${userName} = {
       imports = moduleFiles ../home ++ [
         inputs.agenix.homeManagerModules.default
+        inputs.nixvim.homeModules.nixvim
         inputs.stylix.homeModules.stylix
         inputs.zen-browser.homeModules.default
       ];

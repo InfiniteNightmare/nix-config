@@ -175,14 +175,12 @@ in
       git
       wget
       curl
-      helix
       age
       ragenix
-      system-config-printer
       nodejs
     ];
     variables = {
-      EDITOR = "hx";
+      EDITOR = "nvim";
       QT_IM_MODULE = "fcitx";
       XMODIFIERS = "@im=fcitx";
       SDL_IM_MODULE = "fcitx";

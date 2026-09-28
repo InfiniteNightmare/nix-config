@@ -28,6 +28,12 @@
 
     llm-agents.url = "github:numtide/llm-agents.nix";
 
+    # Declarative neovim configuration module (programs.nixvim)
+    nixvim = {
+      url = "github:nix-community/nixvim";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+
     nixos-hardware.url = "github:NixOS/nixos-hardware/master";
 
     zen-browser = {
