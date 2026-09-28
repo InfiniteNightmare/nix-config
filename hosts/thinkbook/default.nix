@@ -135,7 +135,9 @@ in
       "nix-command"
       "flakes"
     ];
-    auto-optimise-store = true;
+    # Keep store deduplication off the interactive rebuild critical path; the
+    # scheduled optimiser below performs the same work in the background.
+    auto-optimise-store = false;
     builders-use-substitutes = true;
     substituters = [
       "https://cache.numtide.com"
@@ -157,6 +159,11 @@ in
     dates = "monthly";
     # System generations and their checkpoints are retired together by nixos-boot-clean.
     options = "";
+  };
+
+  nix.optimise = {
+    automatic = true;
+    dates = [ "weekly" ];
   };
 
   environment = {
