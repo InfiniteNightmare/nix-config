@@ -25,6 +25,7 @@
     zstd
     gnupg
     glow
+    graphviz
 
     # Networking
     mtr
@@ -56,8 +57,6 @@
     parted
 
     # Terminal applications
-    waveterm
-    warp-terminal
     gtypist
     ttyper
   ];

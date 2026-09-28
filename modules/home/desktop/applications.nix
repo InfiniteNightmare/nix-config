@@ -31,7 +31,6 @@ in
     qq
     wechat
     wemeet
-    brave
     readest
   ];
 
