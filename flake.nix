@@ -34,6 +34,13 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
+    # The server is copied into writable user state at activation time. Keeping
+    # it as a flake input makes the normal `nix flake update` upgrade it too.
+    zotero-pdf2zh = {
+      url = "github:guaguastandup/zotero-pdf2zh";
+      flake = false;
+    };
+
     nixos-hardware.url = "github:NixOS/nixos-hardware/master";
 
     zen-browser = {
