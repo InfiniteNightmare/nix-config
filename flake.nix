@@ -41,6 +41,13 @@
       flake = false;
     };
 
+    # Codex draw.io skill, linked read-only into ~/.codex/skills; a normal
+    # `nix flake update` syncs it from upstream.
+    drawio-skill = {
+      url = "github:Agents365-ai/drawio-skill";
+      flake = false;
+    };
+
     nixos-hardware.url = "github:NixOS/nixos-hardware/master";
 
     zen-browser = {
