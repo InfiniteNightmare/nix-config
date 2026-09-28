@@ -72,10 +72,12 @@ Since this is a system configuration repo, "tests" are primarily build checks an
 *   **Tool:** `agenix` is used for secret management.
 *   **Rule:** **NEVER** put passwords, API keys, or private tokens directly in `.nix` files.
 *   **Reference:** Refer to secrets via `config.age.secrets.<name>.path`.
+*   **Binary content:** Reference secrets and any binary file by path (string interpolation `"${path}"` or a `types.path` option). **NEVER** pass their content (`builtins.readFile`/`lib.fileContents`) into a derivation attribute (`writeText`, `writers`, …): derivation attrs are JSON-serialized at eval time, and raw bytes (e.g. the binary payload of `.age` files) crash with a bare `json.exception.type_error.316` that carries no eval context. Text files are fine to read and template.
 
 ## 4. Development Workflow for Agents
 
 1.  **Explore First:** Use `ls -R` or `find` to understand where files are located. Do not guess paths.
+    *   **Git-track new modules:** the flake only sees git-tracked files — a newly created module file under `modules/` is silently skipped by `nix build`/`nix eval` until it is `git add`-ed (build will still succeed). Always stage new module files before verifying.
 2.  **Read Context:** Read `flake.nix` to understand available inputs and overlays before adding new ones.
 3.  **Modularize:** If adding a complex feature (e.g., a new service), create it in the appropriate auto-discovered module tree rather than clogging up `hosts/thinkbook/default.nix`.
 4.  **No Reverts:** Do not revert changes unless explicitly instructed.
