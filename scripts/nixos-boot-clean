@@ -119,6 +119,8 @@ declare -A RUNTIME_BOOT_FILES=()
 declare -A GENERATIONS_SELECTED_FOR_DELETION=()
 declare -A PROFILE_BOOT_FILES=()
 PROFILE_BOOT_MAPPING_READY=0
+CURRENT_SYSTEM_PATH=""
+BOOTED_SYSTEM_PATH=""
 
 load_kernel_files() {
   local file find_fd find_pid
@@ -135,13 +137,16 @@ load_kernel_files() {
 }
 
 load_runtime_systems() {
-  local link target existing duplicate
+  local target existing duplicate
 
-  for link in "${CURRENT_SYSTEM}" "${BOOTED_SYSTEM}"; do
-    if ! target=$(readlink -e -- "${link}"); then
-      die "cannot resolve runtime system ${link}"
-    fi
+  if ! CURRENT_SYSTEM_PATH=$(readlink -e -- "${CURRENT_SYSTEM}"); then
+    die "cannot resolve runtime system ${CURRENT_SYSTEM}"
+  fi
+  if ! BOOTED_SYSTEM_PATH=$(readlink -e -- "${BOOTED_SYSTEM}"); then
+    die "cannot resolve runtime system ${BOOTED_SYSTEM}"
+  fi
 
+  for target in "${CURRENT_SYSTEM_PATH}" "${BOOTED_SYSTEM_PATH}"; do
     duplicate=0
     for existing in "${RUNTIME_SYSTEMS[@]}"; do
       if [[ ${existing} == "${target}" ]]; then
@@ -181,7 +186,11 @@ collect_runtime_boot_files() {
       done
 
       if (( ! matched )); then
-        die "cannot map ${runtime_file} to ${KERNEL_DIR}; refusing cleanup"
+        if [[ ${runtime} == "${BOOTED_SYSTEM_PATH}" && ${BOOTED_SYSTEM_PATH} != "${CURRENT_SYSTEM_PATH}" ]]; then
+          warn "booted runtime artifact ${runtime_file} is no longer present in ${KERNEL_DIR}; its generation remains protected"
+        else
+          die "cannot map ${runtime_file} to ${KERNEL_DIR}; refusing cleanup"
+        fi
       fi
     done
   done

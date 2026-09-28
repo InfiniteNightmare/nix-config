@@ -551,6 +551,62 @@ EOF
   assert_not_contains "${output}" "${stale}"
 }
 
+test_boot_clean_allows_evicted_booted_initrd() {
+  local fixture="${TEST_ROOT}/boot-evicted-booted-initrd" output
+  local boot_clean_under_test="${fixture}/nixos-boot-clean"
+  local boot="${fixture}/boot"
+  local profile_dir="${fixture}/profiles"
+  local fake_bin="${fixture}/bin"
+  local booted="${fixture}/booted-system-store"
+  local current="${fixture}/current-system-store"
+  local stale="${boot}/kernels/stale"
+  local temporary="${boot}/kernels/incomplete.tmp"
+
+  install -d -m 0755 -- \
+    "${fake_bin}" "${boot}/kernels" "${profile_dir}" "${booted}" "${current}"
+  make_runtime_copy "${BOOT_CLEAN}" "${boot_clean_under_test}"
+  make_generation_list_mock "${fake_bin}/nix-env"
+  cat >"${fake_bin}/mountpoint" <<'EOF'
+#!/usr/bin/env bash
+exit 0
+EOF
+  make_executable "${fake_bin}/mountpoint"
+
+  printf 'kernel-shared\n' >"${booted}/kernel"
+  cp -- "${booted}/kernel" "${current}/kernel"
+  printf 'initrd-booted\n' >"${booted}/initrd"
+  printf 'initrd-current\n' >"${current}/initrd"
+  cp -- "${current}/kernel" "${boot}/kernels/kernel-current"
+  cp -- "${current}/initrd" "${boot}/kernels/initrd-current"
+  printf 'stale\n' >"${stale}"
+  printf 'partial\n' >"${temporary}"
+
+  ln -s -- "${booted}" "${profile_dir}/system-1-link"
+  ln -s -- "${current}" "${profile_dir}/system-2-link"
+  ln -s -- "system-2-link" "${profile_dir}/system"
+  ln -s -- "${current}" "${fixture}/current-system"
+  ln -s -- "${booted}" "${fixture}/booted-system"
+
+  output="${fixture}/output.log"
+  env \
+    PATH="${fake_bin}:${PATH}" \
+    GENERATION_LIST=$'1 2026-01-01\n2 2026-01-02' \
+    BOOT_MOUNT="${boot}" \
+    SYSTEM_PROFILE="${profile_dir}/system" \
+    CURRENT_SYSTEM="${fixture}/current-system" \
+    BOOTED_SYSTEM="${fixture}/booted-system" \
+    CONFIGURATION_LIMIT=2 \
+    MIN_FREE_MIB=0 \
+    NIXOS_CLEAN_SWITCH_LOCK_FILE="${fixture}/lock" \
+    "${boot_clean_under_test}" --dry-run >"${output}" 2>&1
+
+  assert_contains "${output}" "booted runtime artifact ${booted}/initrd is no longer present"
+  assert_contains "${output}" "only temporary files will be removed"
+  assert_contains "${output}" "${temporary}"
+  assert_not_contains "${output}" "${stale}"
+  assert_not_contains "${output}" "refusing cleanup"
+}
+
 make_btrfs_mock() {
   local path=$1
 
@@ -731,6 +787,7 @@ run_test "clean-switch successful activation prefers target helpers" test_clean_
 run_test "clean-switch failure reactivates the source and removes the failed generation" test_clean_switch_failure_reactivates_source
 run_test "boot-clean pairs generation deletion with snapshot pruning" test_boot_clean_pairs_generation_and_snapshot_prune
 run_test "boot-clean retains stale files when a generation cannot be mapped" test_boot_clean_fails_closed_on_unmapped_generation
+run_test "boot-clean tolerates an evicted initrd from the running boot generation" test_boot_clean_allows_evicted_booted_initrd
 run_test "generation-snapshot rejects unsafe identity and member inputs" test_snapshot_rejects_unsafe_identity_and_members
 run_test "generation-snapshot removes orphan root/home members as one set" test_snapshot_prunes_orphan_as_a_pair
 run_test "generation-snapshot retains a set with an invalid manifest" test_snapshot_retains_invalid_manifest
