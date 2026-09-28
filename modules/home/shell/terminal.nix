@@ -64,7 +64,48 @@ in
       extraPackages = [ pkgs.glow ];
       plugins = {
         piper = pkgs.yaziPlugins.piper;
+        # yazi 26.x Lua API breaks nixpkgs' compress.yazi 0.6:
+        # fs.unique_name -> fs.unique(type, url), and tab.selected now yields
+        # File objects without a .parent field. Shim both; drop this once
+        # nixpkgs packages a compatible upstream release (replace-fail will
+        # make the build fail loudly as the signal).
+        compress = pkgs.yaziPlugins.compress.overrideAttrs (old: {
+          postPatch = (old.postPatch or "") + ''
+            substituteInPlace main.lua \
+              --replace-fail 'fs.unique_name(Url(temp_dir))' 'fs.unique("dir", Url(temp_dir))' \
+              --replace-fail 'local temp_dir_status, temp_dir_err = fs.create("dir_all", Url(temp_dir))' 'local temp_dir_status, temp_dir_err = true, nil' \
+              --replace-fail 'fs.unique_name(Url(final_output_url))' 'fs.unique("file", Url(final_output_url))' \
+              --replace-fail 'paths[#paths + 1] = tostring(u.parent)' 'paths[#paths + 1] = tostring(u.url.parent)'
+          '';
+        });
+        extract-rar = ./yazi-extract-rar;
       };
+      initLua = ./yazi-extract-rar/init.lua;
+      keymap.mgr.prepend_keymap = [
+        {
+          on = [
+            "c"
+            "a"
+            "a"
+          ];
+          run = "plugin compress";
+          desc = "Archive selected files";
+        }
+        {
+          on = [
+            "c"
+            "a"
+            "p"
+          ];
+          run = "plugin compress -p";
+          desc = "Archive selected files (password)";
+        }
+        {
+          on = [ "E" ];
+          run = "plugin extract-rar";
+          desc = "Extract rar with unrar (password prompt)";
+        }
+      ];
       settings = {
         plugin.prepend_previewers = [
           {
@@ -74,6 +115,23 @@ in
           {
             url = "*.markdown";
             run = "piper -- CLICOLOR_FORCE=1 glow -w=$w -s=dark \"$1\"";
+          }
+        ];
+        # yazi's builtin extract cannot decode WinRAR 7+ (RAR5 v6) archives:
+        # its 7zz/7z-only pipeline reports "Unsupported Method" and moves out
+        # a 0-byte file. Route .rar to the extract-rar plugin (unrar) instead;
+        # preset plugins cannot be overridden by user plugins (loader cache),
+        # hence the separate name.
+        opener."extract-rar" = [
+          {
+            run = "ya pub extract-rar --list %s";
+            desc = "Extract here (unrar)";
+          }
+        ];
+        open.prepend_rules = [
+          {
+            url = "*.rar";
+            use = [ "extract-rar" ];
           }
         ];
       };
