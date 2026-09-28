@@ -223,6 +223,10 @@ in
   };
 
   services = {
+    # Keep ZCode from silently packing workspaces (full .git history
+    # included) for upload; see modules/nixos/zcode-snapshot-lock.nix.
+    zcode-snapshot-lock.enable = true;
+
     zjuConnect = {
       installCli = true;
 
