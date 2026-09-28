@@ -58,28 +58,7 @@ in
   networking = {
     hostName = "nixos";
     hosts."10.214.131.20" = [ "fnos-lan.charname.fnos.net" ];
-    networkmanager = {
-      enable = true;
-      ensureProfiles.profiles.wired-10-214-104 = {
-        connection = {
-          id = "wired-10-214-104";
-          type = "ethernet";
-          interface-name = "enp2s0";
-          autoconnect = true;
-          autoconnect-priority = 100;
-        };
-        ipv4 = {
-          method = "manual";
-          addresses = "10.214.104.3/24";
-          gateway = "10.214.104.1";
-          dns = "10.10.0.21";
-          dns-priority = -50;
-          route-metric = 100;
-          never-default = false;
-        };
-        ipv6.method = "disabled";
-      };
-    };
+    networkmanager.enable = true;
     proxy = proxySettings;
     firewall = {
       allowedTCPPorts = [
@@ -130,6 +109,7 @@ in
   users.users.${userName} = {
     isNormalUser = true;
     extraGroups = [
+      "networkmanager"
       "wheel"
     ];
     shell = pkgs.fish;
