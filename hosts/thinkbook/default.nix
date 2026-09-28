@@ -91,6 +91,16 @@ in
     '';
   };
 
+  # FnLock on at boot so F1-F12 act as standard function keys. The firmware
+  # powers on with the hotkey/media layer primary and only exposes the
+  # preference through the ideapad_laptop `platform::fnlock` LED (1 = F-keys
+  # primary); the think_lmi BIOS attributes that could persist it are not
+  # writable without an admin password. Fn+Esc still works as a runtime
+  # override.
+  services.udev.extraRules = ''
+    ACTION=="add", SUBSYSTEM=="leds", KERNEL=="platform::fnlock", ATTR{brightness}="1"
+  '';
+
   # Avahi can leave a stale PID file after rebuild restarts; remove it before
   # the service sandbox drops the privileges needed to clean /run/avahi-daemon.
   systemd.services.avahi-daemon.serviceConfig.ExecStartPre =
