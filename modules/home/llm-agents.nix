@@ -36,7 +36,6 @@ in
     chatgpt
     dsh
     qoder-cli
-    rtk
     herdr
     agent-deck
     paseo-desktop
