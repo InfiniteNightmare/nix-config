@@ -30,6 +30,7 @@ let
 in
 {
   home.packages = with llmAgentsPkgs; [
+    omp
     opencode
     claude-code
     codexPackage
@@ -37,8 +38,7 @@ in
     dsh
     qoder-cli
     herdr
-    agent-deck
-    paseo-desktop
+    herdr-app
     zcode
   ];
 }

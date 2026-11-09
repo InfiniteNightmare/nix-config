@@ -9,8 +9,10 @@
     pkgs._7zip-zstd
     pigz
     unrar
+    libarchive
 
     # Command-line utilities
+    libnotify
     ripgrep
     jq
     yq-go
@@ -59,5 +61,6 @@
     # Terminal applications
     gtypist
     ttyper
+    pacvim
   ];
 }

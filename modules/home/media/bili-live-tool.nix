@@ -6,7 +6,7 @@ let
     owner = "ChaceQC";
     repo = "bilibili_live_stream_code";
     rev = "v${version}";
-    hash = "sha256-czLVa6jKTetq0Gs5L/pjYvseZA2gFkBhB9DxdJQH0GU=";
+    hash = "sha256-4aT0BRthR8kWbne43MyV/uh8t6HxOo1f7XNb0XH0ugU=";
   };
 
   python = pkgs.python3;
