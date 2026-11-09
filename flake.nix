@@ -4,6 +4,22 @@
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
 
+    # yazi 26.9 silently drops `open` on FUSE mounts (open waits on mime
+    # fetches, then open_do filters out empty mimes); pinned to 26.8.15 until
+    # upstream fixes it. https://github.com/sxyazi/yazi/issues
+    nixpkgs-yazi.url = "github:NixOS/nixpkgs/7c01cd72dcc091dc807e4a6aa5ad60becafe5401";
+
+    # Snapshot's cargo-setup-hook forces AWS_LC_SYS_USE_SYSTEM=1, but
+    # buildRustPackage ignores default-crate-overrides, so every
+    # aws-lc-sys >=0.42 user (clash-verge-rev, splayer-next) panics at
+    # build and Hydra can't cache it. Pinned to the pre-regression rev;
+    # unpin per package once upstream adds aws-lc to its expression
+    # (clash-verge-rev already fixed on master).
+    nixpkgs-aws-lc.url = "github:NixOS/nixpkgs/3181085bfd08663b6b9e60bc7a8395c2aaa741bd";
+
+    # CachyOS kernel; no nixpkgs.follows — kernel is glibc-independent, and follows would forfeit the nyx cache.
+    chaotic.url = "github:chaotic-cx/nyx/nyxpkgs-unstable";
+
     home-manager = {
       url = "github:nix-community/home-manager";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -11,9 +27,13 @@
 
     noctalia = {
       url = "github:noctalia-dev/noctalia-shell";
-      # Keep Noctalia's own nixpkgs input so its derivation matches upstream Cachix.
+      # Follow our nixpkgs — upstream's cached build breaks against /run/opengl-driver across glibc bumps.
+      inputs.nixpkgs.follows = "nixpkgs";
     };
 
+    # Used for the niri NixOS/Home Manager integration modules only; the
+    # compositor binary itself comes from our nixpkgs (see hosts/thinkbook)
+    # because niri-flake's cached builds lag our nixpkgs across glibc bumps.
     niri.url = "github:sodiboo/niri-flake";
 
     agenix = {
@@ -27,6 +47,12 @@
     };
 
     llm-agents.url = "github:numtide/llm-agents.nix";
+
+    # numtide 的 collie 包跑不起来(release 缺 web 源文件),取上游自己的 flake
+    collie = {
+      url = "github:AltanS/collie";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
 
     # Declarative neovim configuration module (programs.nixvim)
     nixvim = {
