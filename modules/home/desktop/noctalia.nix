@@ -86,10 +86,12 @@ in
         session.actions = [
           {
             action = "command";
-            command = "${pkgs.systemd}/bin/systemctl hibernate";
+            # Lock must finish rendering before poweroff, or wake shows the
+            # raw desktop for a few seconds before the lockscreen surfaces.
+            command = "${pkgs.bash}/bin/bash -c '${config.programs.noctalia.package}/bin/noctalia msg session lock && ${pkgs.coreutils}/bin/sleep 1 && ${pkgs.systemd}/bin/systemctl poweroff'";
             enabled = true;
-            glyph = "hibernate";
-            label = "休眠";
+            glyph = "poweroff";
+            label = "关机";
             shortcut = "1";
             variant = "default";
           }
@@ -493,8 +495,6 @@ in
         enable_overdrive = false;
         enable_sounds = false;
         sound_volume = 0.5;
-        volume_change_sound = "";
-        notification_sound = "";
       };
 
       brightness = {

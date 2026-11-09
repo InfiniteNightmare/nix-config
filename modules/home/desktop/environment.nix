@@ -1,14 +1,24 @@
-{ config, pkgs, ... }:
+{
+  config,
+  lib,
+  pkgs,
+  ...
+}:
 
 let
   wallpaperDirectory = "${config.home.homeDirectory}/Pictures/Wallpaper/wallhaven/touhou-project";
 in
 {
+  # NixOS-side gnome-keyring (enabled by niri-flake) already provides dbus files
+  # and PAM unlock; the HM module only duplicates them and spawns crash-prone
+  # dbus-activated instances.
+  services.gnome-keyring.enable = lib.mkForce false;
+
   home.packages = with pkgs; [
     wl-clipboard
-    gnome-keyring
     grim
     slurp
+    satty
     xcur2png
   ];
 

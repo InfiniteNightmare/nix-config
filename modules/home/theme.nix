@@ -37,6 +37,8 @@
     targets = {
       foot.colors.enable = false;
       foot.opacity.enable = false;
+      # Not installed; skips stylix's rofi module writing the renamed programs.rofi.font option.
+      rofi.enable = false;
       zen-browser.profileNames = [ "default" ];
     };
   };

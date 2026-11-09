@@ -24,6 +24,13 @@ let
       "msg"
     ]
     ++ args;
+
+  # F1 = Snipaste muscle memory
+  screenshotSpawn = [
+    "sh"
+    "-c"
+    "grim -g \"$(slurp)\" -t ppm - | satty --filename - --resize smart --no-window-decoration --copy-command wl-copy --save-after-copy --early-exit --output-filename '~/Pictures/Screenshots/%Y%m%d-%H%M%S.png'"
+  ];
 in
 {
   home.packages = [
@@ -167,9 +174,6 @@ in
     # Prefer no CSD
     prefer-no-csd = true;
 
-    # Screenshot path
-    screenshot-path = "~/Pictures/Screenshots/Screenshot from %Y-%m-%d %H-%M-%S.png";
-
     # Window rules
     window-rules = [
       {
@@ -222,6 +226,15 @@ in
           { app-id = ''^org\.wezfurlong\.wezterm$''; }
         ];
         default-column-width = { };
+      }
+
+      # Satty
+      {
+        matches = [
+          { app-id = ''^com\.gabm\.satty$''; }
+        ];
+        open-floating = true;
+        opacity = 1.0;
       }
 
       # Firefox PiP
@@ -600,7 +613,14 @@ in
       "Mod+W".action.toggle-column-tabbed-display = [ ];
 
       # Screenshots
-      "Print".action.screenshot = [ ];
+      "Print" = {
+        action.spawn = screenshotSpawn;
+        hotkey-overlay.title = "Screenshot";
+      };
+      "F1" = {
+        action.spawn = screenshotSpawn;
+        hotkey-overlay.title = "Screenshot";
+      };
       "Mod+Alt+P" = {
         action.spawn = [
           "hyprpicker"
