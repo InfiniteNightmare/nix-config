@@ -54,11 +54,39 @@ if (client.flow !== "xtls-rprx-vision" || client.network !== "tcp") {
   throw new Error("unsupported VLESS flow or network");
 }
 
+// Optional WireGuard tunnel on the same server: the UDP transport survives
+// evening return-path congestion that freezes every TCP exit.
+const wg = client.wg;
+if (wg !== undefined) {
+  if (typeof wg !== "object" || wg === null || Array.isArray(wg)) {
+    throw new Error("invalid client field: wg must be an object");
+  }
+  for (const field of ["name", "localIp", "privateKey", "serverPublicKey"]) {
+    if (typeof wg[field] !== "string" || wg[field].length === 0) {
+      throw new Error(`invalid or missing wg field: ${field}`);
+    }
+  }
+  if (!Number.isInteger(wg.port) || wg.port < 1 || wg.port > 65535) {
+    throw new Error("invalid wg port");
+  }
+  for (const keyField of ["privateKey", "serverPublicKey"]) {
+    if (!/^[A-Za-z0-9+/]{43}=$/.test(wg[keyField])) {
+      throw new Error(`invalid wg ${keyField}`);
+    }
+  }
+  if (wg.mtu !== undefined && (!Number.isInteger(wg.mtu) || wg.mtu < 1200 || wg.mtu > 1500)) {
+    throw new Error("invalid wg mtu");
+  }
+}
+
 const literal = (value) => JSON.stringify(value);
 
 process.stdout.write(`function main(config, profileName) {
   const proxyName = ${literal(client.name)};
+  const wgConfig = ${literal(wg || null)};
+  const wgName = wgConfig ? wgConfig.name : null;
   const aiGroupName = "AI-US";
+  const aiAutoGroupName = "AI-自动";
   const vpsProxy = {
     name: proxyName,
     type: "vless",
@@ -77,48 +105,106 @@ process.stdout.write(`function main(config, profileName) {
     },
     network: ${literal(client.network)},
   };
+  const wgProxy = wgConfig
+    ? {
+        name: wgConfig.name,
+        type: "wireguard",
+        server: ${literal(client.server)},
+        port: wgConfig.port,
+        ip: wgConfig.localIp,
+        "private-key": wgConfig.privateKey,
+        "public-key": wgConfig.serverPublicKey,
+        mtu: wgConfig.mtu,
+        "persistent-keepalive": 25,
+        udp: true,
+      }
+    : null;
 
   config.proxies = Array.isArray(config.proxies) ? config.proxies : [];
-  const existingProxyIndex = config.proxies.findIndex(
-    (proxy) => proxy && proxy.name === proxyName,
-  );
-  if (existingProxyIndex === -1) {
-    config.proxies.unshift(vpsProxy);
-  } else {
-    config.proxies[existingProxyIndex] = vpsProxy;
+  const upsertProxy = (proxy) => {
+    const existingIndex = config.proxies.findIndex(
+      (candidate) => candidate && candidate.name === proxy.name,
+    );
+    if (existingIndex === -1) {
+      config.proxies.unshift(proxy);
+    } else {
+      config.proxies[existingIndex] = proxy;
+    }
+  };
+  upsertProxy(vpsProxy);
+  if (wgProxy) {
+    upsertProxy(wgProxy);
   }
 
   config["proxy-groups"] = Array.isArray(config["proxy-groups"])
     ? config["proxy-groups"]
     : [];
 
-  // Remove the old script's injection from subscription-wide groups. A dead
-  // private node must not take down unrelated traffic.
+  // Subscription info nodes pass URL tests but forward no traffic; the private
+  // node must not linger in subscription-wide groups either.
+  const junkNodePattern = /剩余流量|套餐|到期|过期|官网|重置|无法使用/;
   for (const group of config["proxy-groups"]) {
-    if (
-      group &&
-      ["宝贝云", "自动选择", "延迟最低"].includes(group.name) &&
-      Array.isArray(group.proxies)
-    ) {
-      group.proxies = group.proxies.filter((name) => name !== proxyName);
+    if (group && Array.isArray(group.proxies)) {
+      group.proxies = group.proxies.filter(
+        (name) =>
+          name !== proxyName &&
+          name !== wgName &&
+          !junkNodePattern.test(name),
+      );
+      // Url-test groups stick to a dead relay until the subscription's own
+      // slow re-probe fires; tighten the cadence so outages self-heal.
+      if (group.type === "url-test") {
+        group.interval = 60;
+        group.timeout = 2000;
+      }
     }
   }
 
-  const fallbackProxyGroup = ["宝贝云", "PROXY", "Proxy", "自动选择"].find(
+  // Chain every subscription-wide group so a dead manual pick in the main
+  // selector cannot strand the fallback. WG first: the UDP tunnel carries
+  // streams through the evening return-path congestion that freezes every
+  // TCP exit (2026-11-04 22:14: WG held 500KB @ 235KB/s while VLESS/airport
+  // streams froze). Airport and raw VLESS stay as fallbacks for WG outages.
+  const fallbackGroups = ["宝贝云", "PROXY", "Proxy", "自动选择"].filter(
     (name) => config["proxy-groups"].some((group) => group && group.name === name),
   );
-  const aiGroupProxies = [
-    proxyName,
-    ...(fallbackProxyGroup ? [fallbackProxyGroup] : []),
-    "DIRECT",
-  ];
+  const aiAutoConfig = {
+    name: aiAutoGroupName,
+    type: "fallback",
+    // Probe chatgpt.com itself; a generic 204 URL passes even when the path
+    // to OpenAI is broken.
+    url: "https://chatgpt.com/cdn-cgi/trace",
+    "expected-status": "200",
+    interval: 30,
+    "max-failed-times": 1,
+    proxies: [
+      ...(wgName ? [wgName] : []),
+      ...fallbackGroups,
+      proxyName,
+      "DIRECT",
+    ],
+  };
   const aiGroupConfig = {
     name: aiGroupName,
-    type: "fallback",
-    url: "https://cp.cloudflare.com/generate_204",
-    interval: 300,
-    proxies: aiGroupProxies,
+    // Manual override lives here; AI-自动 keeps the fallback chain as the
+    // default pick.
+    type: "select",
+    proxies: [
+      aiAutoGroupName,
+      ...(wgName ? [wgName] : []),
+      ...fallbackGroups,
+      proxyName,
+      "DIRECT",
+    ],
   };
+  const aiAutoGroup = config["proxy-groups"].find(
+    (group) => group && group.name === aiAutoGroupName,
+  );
+  if (aiAutoGroup) {
+    Object.assign(aiAutoGroup, aiAutoConfig);
+  } else {
+    config["proxy-groups"].unshift(aiAutoConfig);
+  }
   const aiGroup = config["proxy-groups"].find(
     (group) => group && group.name === aiGroupName,
   );
@@ -146,6 +232,10 @@ process.stdout.write(`function main(config, profileName) {
     "IP-CIDR,223.5.5.5/32,DIRECT,no-resolve",
     "IP-CIDR,119.29.29.29/32,DIRECT,no-resolve",
     "IP-CIDR,114.114.114.114/32,DIRECT,no-resolve",
+    // DoH fallback must ride the AI chain: the subscription pins these IPs to
+    // the airport, and a dead airport then starves resolution too.
+    "IP-CIDR,1.1.1.1/32," + aiGroupName + ",no-resolve",
+    "IP-CIDR,8.8.8.8/32," + aiGroupName + ",no-resolve",
     "DOMAIN-SUFFIX,ipinfo.io," + aiGroupName,
     "DOMAIN-SUFFIX,claude.ai," + aiGroupName,
     "DOMAIN-SUFFIX,anthropic.com," + aiGroupName,
