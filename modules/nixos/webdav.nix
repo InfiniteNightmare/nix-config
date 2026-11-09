@@ -48,8 +48,17 @@ let
 
   mountSubmodule = _: {
     options = {
+      backend = mkOption {
+        type = types.enum [
+          "webdav"
+          "sftp"
+        ];
+        default = "webdav";
+        description = "Remote protocol backend.";
+      };
       url = mkOption {
         type = types.str;
+        default = "";
         description = "WebDAV endpoint URL.";
       };
       username = mkOption {
@@ -61,6 +70,32 @@ let
         type = types.nullOr types.path;
         default = null;
         description = "Age-encrypted file containing the WebDAV password.";
+      };
+      sftpHost = mkOption {
+        type = types.nullOr types.str;
+        default = null;
+        description = "SFTP hostname or IP.";
+      };
+      sftpPort = mkOption {
+        type = types.int;
+        default = 22;
+        description = "SFTP port.";
+      };
+      # Runtime path, not types.path: a private key must never be copied into the store.
+      keyFile = mkOption {
+        type = types.nullOr types.str;
+        default = null;
+        description = "SSH private key path for SFTP auth.";
+      };
+      knownHostsFile = mkOption {
+        type = types.nullOr types.path;
+        default = null;
+        description = "Pinned known_hosts file (store path) for SFTP host key verification.";
+      };
+      remotePath = mkOption {
+        type = types.str;
+        default = "";
+        description = "Subpath of the remote to expose as the mount root (e.g. /vol2/1001). SFTP defaults to the login home.";
       };
       mountPoint = mkOption {
         type = types.nullOr types.str;
@@ -157,12 +192,16 @@ in
       }
     ]
     ++ map (nm: {
-      assertion = nm.m.url != "";
-      message = "webdav mount ${nm.mp}: url cannot be empty.";
+      assertion = if nm.m.backend == "webdav" then nm.m.url != "" else nm.m.sftpHost != null;
+      message = "mount ${nm.mp}: backend ${nm.m.backend} requires url (webdav) or sftpHost (sftp).";
     }) normalizedMounts
     ++ map (nm: {
       assertion = nm.m.encryptedPasswordFile == null || nm.m.username != null;
       message = "webdav mount ${nm.mp}: username required with encryptedPasswordFile.";
+    }) normalizedMounts
+    ++ map (nm: {
+      assertion = nm.m.backend != "sftp" || (nm.m.username != null && nm.m.keyFile != null);
+      message = "sftp mount ${nm.mp}: username and keyFile are required.";
     }) normalizedMounts
     ++ [
       {
@@ -191,10 +230,10 @@ in
     systemd.services = lib.foldl' lib.recursiveUpdate { } (
       map (nm: {
         "rclone-config-${nm.name}" = {
-          description = "Generate rclone config for WebDAV ${nm.name}";
+          description = "Generate rclone config for ${nm.m.backend} ${nm.name}";
 
-          unitConfig = lib.optionalAttrs (nm.m.encryptedPasswordFile != null) {
-            # Decrypt using local identity; avoid relying on /run/agenix (tmpfs).
+          unitConfig = lib.optionalAttrs (nm.m.encryptedPasswordFile != null || nm.m.keyFile != null) {
+            # Decrypt identity / SSH key live under /home; avoid relying on /run/agenix (tmpfs).
             RequiresMountsFor = [ "/home" ];
           };
 
@@ -214,27 +253,41 @@ in
             conf=${lib.escapeShellArg nm.runConfigPath}
             tmp="$conf.tmp"
 
-            RAW_PASS=""
-            ${optionalString (nm.m.encryptedPasswordFile != null) ''
-              RAW_PASS="$(${pkgs.rage}/bin/rage -d ${identityArgs} ${lib.escapeShellArg nm.encryptedPasswordPath})"
-            ''}
-
-            OBS_PASS="$(
-              printf '%s\n' "$RAW_PASS" \
-                | ${pkgs.rclone}/bin/rclone --config /dev/null obscure -
-            )"
-            unset RAW_PASS
-
             ${pkgs.coreutils}/bin/mkdir -p ${lib.escapeShellArg nm.runConfigDir}
 
-            ${pkgs.coreutils}/bin/cat >"$tmp" <<EOF
-            [${nm.name}]
-            type = webdav
-            url = ${nm.m.url}
-            vendor = other
-            ${optionalString (nm.m.username != null) "user = ${nm.m.username}"}
-            pass = $OBS_PASS
-            EOF
+            ${optionalString (nm.m.backend == "sftp") ''
+              ${pkgs.coreutils}/bin/cat >"$tmp" <<EOF
+              [${nm.name}]
+              type = sftp
+              host = ${nm.m.sftpHost}
+              port = ${toString nm.m.sftpPort}
+              ${optionalString (nm.m.username != null) "user = ${nm.m.username}"}
+              key_file = ${nm.m.keyFile}
+              ${optionalString (nm.m.knownHostsFile != null) "known_hosts_file = ${nm.m.knownHostsFile}"}
+              shell_type = unix
+              EOF
+            ''}
+
+            ${optionalString (nm.m.backend == "webdav") ''
+              RAW_PASS=""
+              ${optionalString (nm.m.encryptedPasswordFile != null) ''
+                RAW_PASS="$(${pkgs.rage}/bin/rage -d ${identityArgs} ${lib.escapeShellArg nm.encryptedPasswordPath})"
+              ''}
+              OBS_PASS="$(
+                printf '%s\n' "$RAW_PASS" \
+                  | ${pkgs.rclone}/bin/rclone --config /dev/null obscure -
+              )"
+              unset RAW_PASS
+
+              ${pkgs.coreutils}/bin/cat >"$tmp" <<EOF
+              [${nm.name}]
+              type = webdav
+              url = ${nm.m.url}
+              vendor = other
+              ${optionalString (nm.m.username != null) "user = ${nm.m.username}"}
+              pass = $OBS_PASS
+              EOF
+            ''}
 
             ${pkgs.coreutils}/bin/chmod 600 "$tmp"
             ${pkgs.coreutils}/bin/mv -f "$tmp" "$conf"
@@ -253,7 +306,7 @@ in
         {
           name = nm.mp;
           value = {
-            device = "${nm.name}:";
+            device = "${nm.name}:${nm.m.remotePath}";
             fsType = "rclone";
             options = [
               "nodev"
