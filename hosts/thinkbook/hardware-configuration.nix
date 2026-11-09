@@ -4,6 +4,7 @@
 {
   config,
   lib,
+  pkgs,
   modulesPath,
   ...
 }:
@@ -78,11 +79,49 @@
         "dmask=0022"
       ];
     };
+
+    # Windows D:. Automount keeps it mostly unmounted - a mount carried
+    # across hibernate goes stale if Windows writes to the volume meanwhile.
+    "/mnt/d" = {
+      device = "/dev/disk/by-uuid/67C916974E2C81C3";
+      fsType = "ntfs3";
+      noCheck = true;
+      options = [
+        "noauto"
+        "nofail"
+        "x-systemd.automount"
+        "x-systemd.idle-timeout=60s"
+        "uid=1000"
+        "gid=100"
+        "umask=022"
+        "noatime"
+        "windows_names"
+      ];
+    };
   };
 
   swapDevices = [
     { device = "/dev/disk/by-uuid/fac29ae7-61d6-4fd9-88cc-b5ab0c55517c"; }
   ];
+
+  # No stale NTFS cache may cross hibernate into Windows' write window; the
+  # automount remounts /mnt/d fresh on first access after resume.
+  # Unmount only the real ntfs3 mount, never the autofs placeholder: killing
+  # it fails and disarms the automount unit until restarted.
+  environment.etc."systemd/system-sleep/umount-win-d" = {
+    mode = "0755";
+    source = pkgs.writeShellScript "umount-win-d-before-hibernate" ''
+      if [ "$1" = pre ] && [ "$2" != suspend ]; then
+        if ${pkgs.util-linux}/bin/findmnt -nt -t ntfs3 /mnt/d >/dev/null; then
+          if ${pkgs.util-linux}/bin/umount /mnt/d; then
+            echo "umount-win-d: unmounted /mnt/d before $2"
+          else
+            echo "umount-win-d: /mnt/d busy, left mounted across $2"
+          fi
+        fi
+      fi
+    '';
+  };
 
   # Enables DHCP on each ethernet and wireless interface. In case of scripted networking
   # (the default) this is the recommended approach. When using systemd-networkd it's

@@ -6,11 +6,27 @@
   inputs,
   pkgs,
   userName,
+  lib,
+  config,
   ...
 }:
 
 let
-  niriPackage = inputs.niri.packages.${pkgs.stdenv.hostPlatform.system}.niri-unstable;
+  # Use nixpkgs' niri so its glibc/mesa always match /run/opengl-driver.
+  # niri-flake's cached binaries are built against its own (older) nixpkgs
+  # pin; across a glibc bump niri then fails to dlopen the system GBM
+  # drivers (GLIBC_x.y not found) and the session freezes with a black
+  # console after greetd.
+  niriPackage = pkgs.niri;
+  # See flake.nix nixpkgs-aws-lc: pin clash-verge-rev past the aws-lc-sys breakage.
+  clashPackage =
+    let
+      p = inputs.nixpkgs-aws-lc.legacyPackages.${pkgs.system}.clash-verge-rev;
+    in
+    if p.version == "2.5.2" then
+      p
+    else
+      throw "clash-verge-rev pin drifted to ${p.version}; check if upstream added aws-lc to its expression, then re-pin or unpin (flake.nix nixpkgs-aws-lc)";
   proxySettings = import ../../lib/proxy-settings.nix;
 in
 {
@@ -18,15 +34,18 @@ in
     ./hardware-configuration.nix
     ./locale.nix
     inputs.agenix.nixosModules.default
+    inputs.chaotic.nixosModules.default
   ];
 
   boot = {
-    kernelPackages = pkgs.linuxPackages_zen;
+    kernelPackages = pkgs.linuxPackages_cachyos-lto-znver4;
     resumeDevice = "/dev/disk/by-uuid/fac29ae7-61d6-4fd9-88cc-b5ab0c55517c";
     kernelParams = [
       "amd_pstate=active"
       "mem_sleep_default=deep"
       "hibernate_compression_threads=6"
+      # TANCHJIM BUNNY (KTMicro) can't survive USB resume; reset it instead.
+      "usbcore.quirks=31b2:1112:b"
     ];
     loader = {
       grub = {
@@ -42,7 +61,21 @@ in
         efiSysMountPoint = "/boot";
       };
     };
+    # CachyOS kernel defaults to 100; too swap-happy for a 16G SSD partition.
+    kernel.sysctl."vm.swappiness" = 20;
   };
+
+  # nixos-hardware 早期 KMS 会把 amdgpu.ko + 37MB 固件拖进 initrd;initrd 无 LUKS 用不上
+  hardware.amdgpu.initrd.enable = false;
+
+  # CachyOS LAVD scheduler via sched_ext; runtime-swappable via scxctl, falls back to EEVDF if it misbehaves.
+  services.scx-loader = {
+    enable = true;
+    config.default_sched = "scx_lavd";
+  };
+
+  # tailnet 入口:校园网 DHCP IP 漂移,collie/手机接入都挂在 serve 上
+  services.tailscale.enable = true;
 
   windowsFonts = {
     enable = true;
@@ -112,7 +145,13 @@ in
     # Leave enough RAM for the kernel's hibernation snapshot workspace after
     # device drivers freeze; the default image target was too large under load.
     "w /sys/power/image_size - - - - 6442450944"
+    # Name the stuck device callback in the journal when hibernate aborts.
+    "w /sys/power/pm_debug_messages - - - - 1"
   ];
+
+  # Firmware moves one ACPI data block per cold boot, so a hibernated image
+  # can never pass the resume CRC; the session button powers off instead.
+  systemd.sleep.settings.Sleep.HibernateMode = "shutdown";
 
   # services.blueman.enable = true;
 
@@ -199,6 +238,7 @@ in
     clash-verge = {
       enable = true;
       autoStart = true;
+      package = clashPackage;
       # serviceMode = true;
       # tunMode = true;
       # group = "users";
@@ -223,22 +263,6 @@ in
     # Keep ZCode from silently packing workspaces (full .git history
     # included) for upload; see modules/nixos/zcode-snapshot-lock.nix.
     zcode-snapshot-lock.enable = true;
-
-    zjuConnect = {
-      installCli = true;
-
-      # Enable after adding an agenix secret for the account password.
-      # enable = true;
-      # username = "your-zju-account";
-      # passwordSecret = "zju-connect-password";
-      # protocol = "easyconnect";
-      # socksBind = "127.0.0.1:1080";
-      # httpBind = "127.0.0.1:1081";
-
-      # For aTrust, persist client state to avoid repeated verification.
-      # protocol = "atrust";
-      # clientDataFile = "/var/lib/zju-connect/client_data.json";
-    };
     xserver.xkb = {
       layout = "us";
       variant = "";
@@ -313,8 +337,9 @@ in
         CPU_SCALING_GOVERNOR_ON_AC = "performance";
         CPU_SCALING_GOVERNOR_ON_BAT = "powersave";
 
-        # AMD CPU 能耗模式
-        CPU_ENERGY_PERF_POLICY_ON_AC = "performance";
+        # EPP/平台 profile stay off the max: racing to top frequency for every
+        # blip costs heat and fan wear for imperceptible desktop gains.
+        CPU_ENERGY_PERF_POLICY_ON_AC = "balance_performance";
         CPU_ENERGY_PERF_POLICY_ON_BAT = "power";
 
         # CPU 频率范围
@@ -328,7 +353,7 @@ in
         CPU_BOOST_ON_BAT = 0;
 
         # 平台配置文件
-        PLATFORM_PROFILE_ON_AC = "performance";
+        PLATFORM_PROFILE_ON_AC = "balanced";
         PLATFORM_PROFILE_ON_BAT = "low-power";
 
         # 运行时电源管理
@@ -357,6 +382,11 @@ in
     enable = true;
     identityPaths = [ "/home/${userName}/.ssh/id_ed25519" ];
     mounts = {
+      # Reverted from SFTP: the evening 2.4GHz link (co-channel APs, RTT
+      # spikes 100-400ms, lossy) wedges SFTP's single multiplexed channel
+      # into queue storms and dead mounts. WebDAV's per-request pooled
+      # HTTP conns self-heal and are the proven-stable shape on this link.
+      # The module keeps the sftp backend for when the link is fixed.
       fnos = {
         url = "https://fnos-lan.charname.fnos.net:5006";
         username = userName;
