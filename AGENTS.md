@@ -7,6 +7,10 @@ This repository contains a **NixOS Flake configuration** with Home Manager. Agen
 Since this is a system configuration repo, "tests" are primarily build checks and linting.
 
 ### Build Commands
+*   **Always pass `--no-link` to every `nix build`** (add `--print-out-paths` when the output
+    path is needed). Bare `nix build` drops a `result` symlink in the repo; if you find stray
+    `result*` links, remove them — they are plain symlinks.
+
 *   **Build System (Dry Run):** To verify a configuration compiles without applying it:
     ```bash
     nix build --no-link .#nixosConfigurations.thinkbook.config.system.build.toplevel
