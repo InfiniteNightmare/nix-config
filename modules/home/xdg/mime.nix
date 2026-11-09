@@ -21,9 +21,14 @@ _: {
       "x-scheme-handler/clash" = "clash-verge.desktop";
       "x-scheme-handler/clash-verge" = "clash-verge.desktop";
 
+      # --- App deep links ---
+      "x-scheme-handler/zcode" = "zcode.desktop";
+      "x-scheme-handler/codex" = "chatgpt.desktop";
+
       # --- Media Players (mpv) ---
       "video/mp4" = "mpv.desktop";
       "video/x-matroska" = "mpv.desktop";
+      "video/matroska" = "mpv.desktop"; # file(1) emits this alias for some mkv EBML headers
       "video/webm" = "mpv.desktop";
       "video/quicktime" = "mpv.desktop";
       "video/x-msvideo" = "mpv.desktop"; # avi
@@ -31,6 +36,26 @@ _: {
       "audio/mpeg" = "mpv.desktop"; # mp3
       "audio/flac" = "mpv.desktop";
       "audio/x-wav" = "mpv.desktop";
+
+      # --- PDF (zathura) ---
+      "application/pdf" = "zathura.desktop";
+
+      # --- Markdown/text (neovide) ---
+      "text/markdown" = "neovide.desktop";
+      "text/plain" = "neovide.desktop";
+
+      # --- Images (swayimg) ---
+      "image/png" = "swayimg.desktop";
+      "image/jpeg" = "swayimg.desktop";
+      "image/jpg" = "swayimg.desktop";
+      "image/gif" = "swayimg.desktop";
+      "image/webp" = "swayimg.desktop";
+      "image/avif" = "swayimg.desktop";
+      "image/jxl" = "swayimg.desktop";
+      "image/heif" = "swayimg.desktop";
+      "image/svg+xml" = "swayimg.desktop";
+      "image/bmp" = "swayimg.desktop";
+      "image/tiff" = "swayimg.desktop";
     };
   };
 }
